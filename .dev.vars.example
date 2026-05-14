@@ -2,4 +2,6 @@ ADMIN_TOKEN=replace-with-admin-token
 WEBHOOK_SHARED_TOKEN=replace-with-webhook-token
 BOT_STATE_ENC_KEY=replace-with-long-random-secret
 ILINK_BASE_URL=https://ilinkai.weixin.qq.com
-
+KEEPALIVE_ENABLED=true
+KEEPALIVE_INTERVAL_HOURS=24
+KEEPALIVE_TEXT=【保活提醒】请和微信 ClawBot 进行一次交互，保持 iLink 上下文可用。

@@ -9,12 +9,43 @@ import { BotStateRepository } from "./storage/bot-state-repository";
 import { DeliveryLogRepository } from "./storage/delivery-log-repository";
 import { LoginSessionRepository } from "./storage/login-session-repository";
 
+const DEFAULT_KEEPALIVE_TEXT = "【保活提醒】请和微信 ClawBot 进行一次交互，保持 iLink 上下文可用。";
+
 const requireBinding = (value: string | undefined, name: string): string => {
   if (!value) {
     throw new AppError(500, "missing_binding", `缺少必需绑定: ${name}`);
   }
 
   return value;
+};
+
+const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
+  if (value === undefined || value.trim() === "") {
+    return fallback;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  throw new AppError(500, "invalid_binding", "KEEPALIVE_ENABLED 必须是 true/false。");
+};
+
+const parseIntervalHours = (value: string | undefined): number => {
+  if (value === undefined || value.trim() === "") {
+    return 24;
+  }
+
+  const parsed = Number.parseInt(value.trim(), 10);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 720) {
+    throw new AppError(500, "invalid_binding", "KEEPALIVE_INTERVAL_HOURS 必须是 1-720 之间的整数。");
+  }
+
+  return parsed;
 };
 
 export const createAppContext = (env: CloudflareBindings): AppContext => {
@@ -32,7 +63,13 @@ export const createAppContext = (env: CloudflareBindings): AppContext => {
   return {
     config: {
       adminToken,
-      webhookSharedToken
+      webhookSharedToken,
+      keepalive: {
+        enabled: parseBoolean(env.KEEPALIVE_ENABLED, true),
+        source: "keepalive",
+        intervalHours: parseIntervalHours(env.KEEPALIVE_INTERVAL_HOURS),
+        text: env.KEEPALIVE_TEXT?.trim() || DEFAULT_KEEPALIVE_TEXT
+      }
     },
     services: {
       admin: new DefaultAdminService(ilinkClient, botRepository, loginSessionRepository),
@@ -41,4 +78,3 @@ export const createAppContext = (env: CloudflareBindings): AppContext => {
     }
   };
 };
-

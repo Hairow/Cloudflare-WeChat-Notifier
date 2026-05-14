@@ -126,6 +126,22 @@ export interface CompensateStaleQueuedResult {
   source?: string;
 }
 
+export interface KeepaliveConfig {
+  enabled: boolean;
+  source: string;
+  intervalHours: number;
+  text: string;
+}
+
+export interface ScheduledKeepaliveResult {
+  enqueued: boolean;
+  reason: "disabled" | "not_due" | "queued" | "duplicate";
+  deliveryId: string | null;
+  lastDeliveryId: string | null;
+  lastCreatedAt: string | null;
+  nextDueAt: string | null;
+}
+
 export interface HealthResponse {
   service: string;
   timestamp: string;
@@ -148,6 +164,7 @@ export interface DeliveryService {
   replayDelivery(deliveryId: string): Promise<ReplayDeliveryResult>;
   replayFailedRetMinusTwo(query: { limit: number; source?: string }): Promise<ReplayFailedRetMinusTwoResult>;
   compensateStaleQueued(query: { limit: number; olderThanMinutes: number; source?: string }): Promise<CompensateStaleQueuedResult>;
+  enqueueKeepaliveIfDue(config: KeepaliveConfig, now?: Date): Promise<ScheduledKeepaliveResult>;
   processQueuedDelivery(deliveryId: string, attempts: number): Promise<QueueProcessResult>;
   handleQueueProcessingError(deliveryId: string, attempts: number, error: unknown): Promise<QueueProcessResult>;
 }
@@ -159,6 +176,7 @@ export interface HealthService {
 export interface RuntimeConfig {
   adminToken: string;
   webhookSharedToken: string;
+  keepalive: KeepaliveConfig;
 }
 
 export interface AppServices {

@@ -5,9 +5,11 @@ import type {
   DeliveryLog,
   EnqueueDeliveryResult,
   IncomingMessagePayload,
+  KeepaliveConfig,
   QueueProcessResult,
   ReplayDeliveryResult,
-  ReplayFailedRetMinusTwoResult
+  ReplayFailedRetMinusTwoResult,
+  ScheduledKeepaliveResult
 } from "../contracts";
 import { IlinkClient } from "../ilink/client";
 import { AppError, isIlinkApiError, toErrorMessage } from "../lib/errors";
@@ -17,6 +19,7 @@ import { DeliveryLogRepository } from "../storage/delivery-log-repository";
 
 const RETRYABLE_ATTEMPTS = 3;
 const RET_MINUS_TWO_PREFIX = "iLink ret=-2";
+const MS_PER_HOUR = 60 * 60 * 1000;
 
 export class DefaultDeliveryService {
   public constructor(
@@ -176,6 +179,55 @@ export class DefaultDeliveryService {
       limit: query.limit,
       olderThanMinutes: query.olderThanMinutes,
       source: query.source
+    };
+  }
+
+  public async enqueueKeepaliveIfDue(config: KeepaliveConfig, now = new Date()): Promise<ScheduledKeepaliveResult> {
+    if (!config.enabled) {
+      return {
+        enqueued: false,
+        reason: "disabled",
+        deliveryId: null,
+        lastDeliveryId: null,
+        lastCreatedAt: null,
+        nextDueAt: null
+      };
+    }
+
+    const latest = (await this.listDeliveries({ limit: 1, source: config.source })).items[0] ?? null;
+    const intervalMs = config.intervalHours * MS_PER_HOUR;
+    const nextDueAt = latest ? new Date(new Date(latest.createdAt).getTime() + intervalMs) : null;
+
+    if (nextDueAt && nextDueAt.getTime() > now.getTime()) {
+      return {
+        enqueued: false,
+        reason: "not_due",
+        deliveryId: null,
+        lastDeliveryId: latest.deliveryId,
+        lastCreatedAt: latest.createdAt,
+        nextDueAt: nextDueAt.toISOString()
+      };
+    }
+
+    const intervalBucket = Math.floor(now.getTime() / intervalMs);
+    const result = await this.enqueueDelivery(config.source, {
+      text: config.text,
+      traceId: `keepalive-${intervalBucket}`,
+      dedupeKey: `interval-${intervalBucket}`,
+      meta: {
+        kind: "keepalive",
+        intervalHours: config.intervalHours,
+        scheduledAt: now.toISOString()
+      }
+    });
+
+    return {
+      enqueued: !result.duplicate,
+      reason: result.duplicate ? "duplicate" : "queued",
+      deliveryId: result.deliveryId,
+      lastDeliveryId: latest?.deliveryId ?? null,
+      lastCreatedAt: latest?.createdAt ?? null,
+      nextDueAt: new Date(now.getTime() + intervalMs).toISOString()
     };
   }
 

@@ -108,6 +108,14 @@ const createServices = (): AppServices => ({
       olderThanMinutes: 10,
       source: undefined
     }),
+    enqueueKeepaliveIfDue: vi.fn().mockResolvedValue({
+      enqueued: false,
+      reason: "not_due",
+      deliveryId: null,
+      lastDeliveryId: "delivery-1",
+      lastCreatedAt: "2026-03-26T00:00:00.000Z",
+      nextDueAt: "2026-03-27T00:00:00.000Z"
+    }),
     processQueuedDelivery: vi.fn().mockResolvedValue({
       outcome: "ack"
     }),
@@ -129,7 +137,13 @@ const createServices = (): AppServices => ({
 const createContext = (): AppContext => ({
   config: {
     adminToken: "admin-token",
-    webhookSharedToken: "webhook-token"
+    webhookSharedToken: "webhook-token",
+    keepalive: {
+      enabled: true,
+      source: "keepalive",
+      intervalHours: 24,
+      text: "keepalive"
+    }
   },
   services: createServices()
 });

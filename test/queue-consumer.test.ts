@@ -23,6 +23,7 @@ const createServices = (outcome: "ack" | "retry", options?: {
       replayDelivery: vi.fn(),
       replayFailedRetMinusTwo: vi.fn(),
       compensateStaleQueued: vi.fn(),
+      enqueueKeepaliveIfDue: vi.fn(),
       processQueuedDelivery: vi.fn().mockImplementation(async (deliveryId: string) => {
         if (throwOnDeliveryIds.has(deliveryId)) {
           throw new Error("unexpected processing error");
@@ -60,7 +61,13 @@ const createServices = (outcome: "ack" | "retry", options?: {
 const createContext = (outcome: "ack" | "retry"): AppContext => ({
   config: {
     adminToken: "admin-token",
-    webhookSharedToken: "webhook-token"
+    webhookSharedToken: "webhook-token",
+    keepalive: {
+      enabled: true,
+      source: "keepalive",
+      intervalHours: 24,
+      text: "keepalive"
+    }
   },
   services: createServices(outcome)
 });
@@ -142,7 +149,13 @@ describe("queue consumer", () => {
     const context = {
       config: {
         adminToken: "admin-token",
-        webhookSharedToken: "webhook-token"
+        webhookSharedToken: "webhook-token",
+        keepalive: {
+          enabled: true,
+          source: "keepalive",
+          intervalHours: 24,
+          text: "keepalive"
+        }
       },
       services: createServices("ack", {
         throwOnDeliveryIds: ["delivery-1"],
@@ -181,7 +194,13 @@ describe("queue consumer", () => {
     const context = {
       config: {
         adminToken: "admin-token",
-        webhookSharedToken: "webhook-token"
+        webhookSharedToken: "webhook-token",
+        keepalive: {
+          enabled: true,
+          source: "keepalive",
+          intervalHours: 24,
+          text: "keepalive"
+        }
       },
       services: createServices("ack", {
         ackStatus: "failed"

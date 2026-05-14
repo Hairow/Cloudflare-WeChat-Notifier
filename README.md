@@ -50,6 +50,7 @@ flowchart LR
 | 敏感信息加密 | `bot_token`、`ilink_user_id`、`context_token` 等敏感字段入库前使用 AES-GCM 加密 |
 | 投递日志 | 记录 `trace_id`、`dedupe_key`、状态、响应码、错误信息和尝试次数 |
 | 幂等支持 | 传入 `dedupeKey` 时，按 `source + dedupeKey` 防止重复投递 |
+| 自动保活提醒 | 通过 Worker 定时任务每 24 小时自动入队一条交互保活提醒 |
 | 管理页面 | 提供总览页、二维码页、日志中心，适合部署后直接使用 |
 
 ---
@@ -118,6 +119,9 @@ ADMIN_TOKEN=replace-with-admin-token
 WEBHOOK_SHARED_TOKEN=replace-with-webhook-token
 BOT_STATE_ENC_KEY=replace-with-long-random-secret
 ILINK_BASE_URL=https://ilinkai.weixin.qq.com
+KEEPALIVE_ENABLED=true
+KEEPALIVE_INTERVAL_HOURS=24
+KEEPALIVE_TEXT=【保活提醒】请和微信 ClawBot 进行一次交互，保持 iLink 上下文可用。
 ```
 
 ### 5. 配置 Cloudflare Secrets
@@ -154,6 +158,9 @@ npm run deploy
 | `WEBHOOK_SHARED_TOKEN` | Secret | 是 | 校验 `/webhook/:source` 请求头中的 `X-Webhook-Token` |
 | `BOT_STATE_ENC_KEY` | Secret | 是 | 加密 D1 中保存的敏感 bot 信息 |
 | `ILINK_BASE_URL` | Variable | 否 | iLink API 地址，默认 `https://ilinkai.weixin.qq.com` |
+| `KEEPALIVE_ENABLED` | Variable | 否 | 是否启用自动保活提醒，默认 `true` |
+| `KEEPALIVE_INTERVAL_HOURS` | Variable | 否 | 自动保活提醒间隔小时数，默认 `24` |
+| `KEEPALIVE_TEXT` | Variable | 否 | 自动保活提醒文本 |
 | `DB` | D1 Binding | 是 | D1 数据库绑定 |
 | `NOTIFICATION_QUEUE` | Queue Binding | 是 | 消息投递队列绑定 |
 
