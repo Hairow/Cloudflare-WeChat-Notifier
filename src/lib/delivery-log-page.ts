@@ -36,6 +36,9 @@ export const renderDeliveryLogPage = (input: {
         --shadow: 0 24px 80px rgba(24, 39, 75, 0.12);
       }
       * { box-sizing: border-box; }
+      html {
+        overflow-x: hidden;
+      }
       body {
         margin: 0;
         font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -44,10 +47,11 @@ export const renderDeliveryLogPage = (input: {
           radial-gradient(circle at top left, #edf8f5 0%, transparent 34%),
           radial-gradient(circle at top right, #eaf0ff 0%, transparent 28%),
           var(--bg);
+        overflow-x: hidden;
       }
       .shell {
         min-height: 100vh;
-        padding: 24px;
+        padding: clamp(12px, 2vw, 24px);
       }
       .stack {
         width: min(1280px, 100%);
@@ -63,21 +67,27 @@ export const renderDeliveryLogPage = (input: {
         box-shadow: var(--shadow);
       }
       .hero {
-        padding: 28px;
+        padding: clamp(20px, 3vw, 28px);
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
         gap: 16px;
         flex-wrap: wrap;
       }
+      .hero > div:first-child {
+        flex: 1 1 420px;
+        min-width: 0;
+      }
       h1 {
         margin: 0 0 8px;
-        font-size: 32px;
+        font-size: clamp(28px, 4vw, 32px);
+        line-height: 1.15;
       }
       p {
         margin: 0;
         color: var(--muted);
         line-height: 1.7;
+        overflow-wrap: anywhere;
       }
       .pill {
         display: inline-flex;
@@ -91,13 +101,13 @@ export const renderDeliveryLogPage = (input: {
         font-weight: 600;
       }
       .filters {
-        padding: 0 28px 28px;
+        padding: 0 clamp(20px, 3vw, 28px) clamp(20px, 3vw, 28px);
         display: grid;
         gap: 14px;
       }
       .filters-grid {
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         gap: 14px;
       }
       label {
@@ -116,23 +126,36 @@ export const renderDeliveryLogPage = (input: {
         background: #fff;
         color: var(--text);
         font: inherit;
+        min-width: 0;
       }
       .actions {
         display: flex;
         gap: 12px;
         flex-wrap: wrap;
+        align-items: center;
+        min-width: 0;
       }
       button,
       a.button {
         appearance: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         border: 0;
         border-radius: 999px;
         padding: 12px 18px;
+        min-height: 46px;
         background: var(--text);
         color: #fff;
         text-decoration: none;
         cursor: pointer;
         font-weight: 700;
+        font-size: 14px;
+        line-height: 1.2;
+        text-align: center;
+        white-space: nowrap;
+        max-width: 100%;
+        touch-action: manipulation;
       }
       button.secondary,
       a.secondary {
@@ -142,12 +165,13 @@ export const renderDeliveryLogPage = (input: {
       }
       .dashboard {
         display: grid;
-        grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.8fr);
+        grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.8fr);
         gap: 20px;
       }
       .table-card,
       .detail-card {
         overflow: hidden;
+        min-width: 0;
       }
       .section-head {
         padding: 22px 24px 0;
@@ -161,10 +185,12 @@ export const renderDeliveryLogPage = (input: {
       }
       .table-wrap {
         padding: 18px 24px 24px;
-        overflow: auto;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
       }
       table {
         width: 100%;
+        min-width: 860px;
         border-collapse: collapse;
       }
       th,
@@ -182,6 +208,7 @@ export const renderDeliveryLogPage = (input: {
       }
       td code {
         font-size: 12px;
+        overflow-wrap: anywhere;
       }
       .badge {
         display: inline-flex;
@@ -217,6 +244,7 @@ export const renderDeliveryLogPage = (input: {
         background: #f8fafc;
         border: 1px solid var(--line);
         color: var(--muted);
+        overflow-wrap: anywhere;
       }
       pre {
         margin: 0;
@@ -226,24 +254,50 @@ export const renderDeliveryLogPage = (input: {
         color: #e5eefb;
         overflow: auto;
         min-height: 320px;
+        max-width: 100%;
         font-size: 13px;
         line-height: 1.6;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
       }
       .tiny {
         font-size: 13px;
         color: var(--muted);
       }
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.58;
+      }
+      button:focus-visible,
+      a.button:focus-visible,
+      input:focus-visible,
+      select:focus-visible {
+        outline: 3px solid rgba(15, 118, 110, 0.28);
+        outline-offset: 2px;
+      }
       @media (max-width: 1100px) {
-        .filters-grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
         .dashboard {
           grid-template-columns: 1fr;
         }
       }
       @media (max-width: 720px) {
-        .filters-grid {
-          grid-template-columns: 1fr;
+        .stack {
+          gap: 14px;
+        }
+        .card {
+          border-radius: 20px;
+        }
+        .actions {
+          width: 100%;
+        }
+        .actions > * {
+          flex: 1 1 100%;
+        }
+        .section-head,
+        .table-wrap,
+        .detail-box {
+          padding-left: 18px;
+          padding-right: 18px;
         }
       }
     </style>

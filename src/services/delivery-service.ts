@@ -1,4 +1,5 @@
 import type {
+  CompensateStaleQueuedResult,
   DeliveryListQuery,
   DeliveryListResult,
   DeliveryLog,
@@ -131,6 +132,49 @@ export class DefaultDeliveryService {
     return {
       items,
       limit: query.limit,
+      source: query.source
+    };
+  }
+
+  public async compensateStaleQueued(query: {
+    limit: number;
+    olderThanMinutes: number;
+    source?: string;
+  }): Promise<CompensateStaleQueuedResult> {
+    const cutoff = new Date(Date.now() - query.olderThanMinutes * 60 * 1000).toISOString();
+    const deliveries = await this.deliveryLogRepository.listStaleQueuedAttemptsZero({
+      limit: query.limit,
+      beforeIso: cutoff,
+      source: query.source
+    });
+    const items: ReplayDeliveryResult[] = [];
+
+    for (const delivery of deliveries) {
+      try {
+        await this.deliveryLogRepository.markQueuedForReplay(delivery.deliveryId);
+        await this.sendDeliveryToQueue(delivery.deliveryId);
+        items.push({
+          deliveryId: delivery.deliveryId,
+          status: "queued",
+          replayed: true,
+          error: null
+        });
+      } catch (error) {
+        const message = toErrorMessage(error);
+        await this.deliveryLogRepository.markFailed(delivery.deliveryId, 0, message, null);
+        items.push({
+          deliveryId: delivery.deliveryId,
+          status: "failed",
+          replayed: false,
+          error: message
+        });
+      }
+    }
+
+    return {
+      items,
+      limit: query.limit,
+      olderThanMinutes: query.olderThanMinutes,
       source: query.source
     };
   }

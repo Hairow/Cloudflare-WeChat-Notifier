@@ -96,6 +96,25 @@ const parseReplayQuery = (request: Request): { limit: number; source?: string } 
   };
 };
 
+const parseQueuedCompensationQuery = (request: Request): { limit: number; olderThanMinutes: number; source?: string } => {
+  const url = new URL(request.url);
+  const rawOlderThanMinutes = url.searchParams.get("olderThanMinutes");
+  const replayQuery = parseReplayQuery(request);
+
+  let olderThanMinutes = 10;
+  if (rawOlderThanMinutes) {
+    olderThanMinutes = Number.parseInt(rawOlderThanMinutes, 10);
+    if (!Number.isInteger(olderThanMinutes) || olderThanMinutes < 1 || olderThanMinutes > 1440) {
+      throw new AppError(400, "invalid_older_than_minutes", "olderThanMinutes 必须是 1-1440 之间的整数。");
+    }
+  }
+
+  return {
+    ...replayQuery,
+    olderThanMinutes
+  };
+};
+
 export const createApp = (context: AppContext): Hono => {
   const app = new Hono();
 
@@ -336,6 +355,14 @@ export const createApp = (context: AppContext): Hono => {
 
   app.post("/admin/deliveries/replay-ret2", async (c) => {
     const data = await context.services.delivery.replayFailedRetMinusTwo(parseReplayQuery(c.req.raw));
+    return c.json({
+      code: 202,
+      data
+    }, 202);
+  });
+
+  app.post("/admin/deliveries/compensate-queued", async (c) => {
+    const data = await context.services.delivery.compensateStaleQueued(parseQueuedCompensationQuery(c.req.raw));
     return c.json({
       code: 202,
       data

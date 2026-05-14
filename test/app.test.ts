@@ -95,6 +95,19 @@ const createServices = (): AppServices => ({
       limit: 20,
       source: undefined
     }),
+    compensateStaleQueued: vi.fn().mockResolvedValue({
+      items: [
+        {
+          deliveryId: "delivery-1",
+          status: "queued",
+          replayed: true,
+          error: null
+        }
+      ],
+      limit: 20,
+      olderThanMinutes: 10,
+      source: undefined
+    }),
     processQueuedDelivery: vi.fn().mockResolvedValue({
       outcome: "ack"
     }),
@@ -271,6 +284,27 @@ describe("app routes", () => {
     expect(body.data.items[0]?.deliveryId).toBe("delivery-1");
     expect(context.services.delivery.replayFailedRetMinusTwo).toHaveBeenCalledWith({
       limit: 5,
+      source: "github"
+    });
+  });
+
+  it("should compensate stale queued deliveries", async () => {
+    const context = createContext();
+    const app = createApp(context);
+
+    const response = await app.request(
+      "http://localhost/admin/deliveries/compensate-queued?token=admin-token&limit=5&olderThanMinutes=30&source=github",
+      {
+        method: "POST"
+      }
+    );
+    const body = (await response.json()) as { code: number; data: { items: Array<{ deliveryId: string }> } };
+
+    expect(response.status).toBe(202);
+    expect(body.data.items[0]?.deliveryId).toBe("delivery-1");
+    expect(context.services.delivery.compensateStaleQueued).toHaveBeenCalledWith({
+      limit: 5,
+      olderThanMinutes: 30,
       source: "github"
     });
   });

@@ -119,6 +119,13 @@ export interface ReplayFailedRetMinusTwoResult {
   source?: string;
 }
 
+export interface CompensateStaleQueuedResult {
+  items: ReplayDeliveryResult[];
+  limit: number;
+  olderThanMinutes: number;
+  source?: string;
+}
+
 export interface HealthResponse {
   service: string;
   timestamp: string;
@@ -140,6 +147,7 @@ export interface DeliveryService {
   getDelivery(deliveryId: string): Promise<DeliveryLog | null>;
   replayDelivery(deliveryId: string): Promise<ReplayDeliveryResult>;
   replayFailedRetMinusTwo(query: { limit: number; source?: string }): Promise<ReplayFailedRetMinusTwoResult>;
+  compensateStaleQueued(query: { limit: number; olderThanMinutes: number; source?: string }): Promise<CompensateStaleQueuedResult>;
   processQueuedDelivery(deliveryId: string, attempts: number): Promise<QueueProcessResult>;
   handleQueueProcessingError(deliveryId: string, attempts: number, error: unknown): Promise<QueueProcessResult>;
 }

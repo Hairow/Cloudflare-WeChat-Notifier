@@ -5,6 +5,9 @@ compatibility_date = "2026-03-26"
 [vars]
 ILINK_BASE_URL = "https://ilinkai.weixin.qq.com"
 
+[triggers]
+crons = ["*/15 * * * *"]
+
 [[d1_databases]]
 binding = "DB"
 database_name = "ilink-cloudflare"

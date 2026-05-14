@@ -22,6 +22,7 @@ const createServices = (outcome: "ack" | "retry", options?: {
       getDelivery: vi.fn(),
       replayDelivery: vi.fn(),
       replayFailedRetMinusTwo: vi.fn(),
+      compensateStaleQueued: vi.fn(),
       processQueuedDelivery: vi.fn().mockImplementation(async (deliveryId: string) => {
         if (throwOnDeliveryIds.has(deliveryId)) {
           throw new Error("unexpected processing error");

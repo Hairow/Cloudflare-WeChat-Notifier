@@ -220,6 +220,48 @@ export class DeliveryLogRepository {
     return result.results.map((row) => this.toEntity(row));
   }
 
+  public async listStaleQueuedAttemptsZero(input: {
+    limit: number;
+    beforeIso: string;
+    source?: string;
+  }): Promise<DeliveryLog[]> {
+    const filters = ["status = 'queued'", "attempts = 0", "updated_at <= ?"];
+    const bindings: Array<string | number> = [input.beforeIso];
+
+    if (input.source) {
+      filters.push("source = ?");
+      bindings.push(input.source);
+    }
+
+    const result = await this.db
+      .prepare(
+        `
+          SELECT
+            delivery_id,
+            source,
+            trace_id,
+            dedupe_key,
+            idempotency_key,
+            text,
+            meta_json,
+            status,
+            attempts,
+            error,
+            response_code,
+            created_at,
+            updated_at
+          FROM delivery_log
+          WHERE ${filters.join(" AND ")}
+          ORDER BY updated_at ASC, delivery_id ASC
+          LIMIT ?
+        `
+      )
+      .bind(...bindings, input.limit)
+      .all<DeliveryLogRow>();
+
+    return result.results.map((row) => this.toEntity(row));
+  }
+
   public async markRetrying(deliveryId: string, attempts: number, error: string, responseCode: number | null): Promise<void> {
     await this.update(deliveryId, "retrying", attempts, error, responseCode);
   }

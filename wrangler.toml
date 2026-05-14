@@ -5,6 +5,9 @@ compatibility_date = "2026-03-26"
 [vars]
 ILINK_BASE_URL = "https://ilinkai.weixin.qq.com"
 
+[triggers]
+crons = ["*/15 * * * *"]
+
 # 替换为你自己的 D1 数据库 ID。
 [[d1_databases]]
 binding = "DB"
