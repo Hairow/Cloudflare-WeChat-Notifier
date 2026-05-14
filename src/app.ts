@@ -73,6 +73,29 @@ const parseRefreshSeconds = (request: Request, fallback: number): number => {
   return refreshSeconds;
 };
 
+const parseReplayQuery = (request: Request): { limit: number; source?: string } => {
+  const url = new URL(request.url);
+  const rawLimit = url.searchParams.get("limit");
+  const rawSource = url.searchParams.get("source")?.trim();
+
+  let limit = 20;
+  if (rawLimit) {
+    limit = Number.parseInt(rawLimit, 10);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+      throw new AppError(400, "invalid_limit", "limit 必须是 1-100 之间的整数。");
+    }
+  }
+
+  if (rawSource) {
+    validateSource(rawSource);
+  }
+
+  return {
+    limit,
+    source: rawSource || undefined
+  };
+};
+
 export const createApp = (context: AppContext): Hono => {
   const app = new Hono();
 
@@ -309,6 +332,22 @@ export const createApp = (context: AppContext): Hono => {
         }
       }
     );
+  });
+
+  app.post("/admin/deliveries/replay-ret2", async (c) => {
+    const data = await context.services.delivery.replayFailedRetMinusTwo(parseReplayQuery(c.req.raw));
+    return c.json({
+      code: 202,
+      data
+    }, 202);
+  });
+
+  app.post("/admin/deliveries/:deliveryId/replay", async (c) => {
+    const data = await context.services.delivery.replayDelivery(c.req.param("deliveryId"));
+    return c.json({
+      code: 202,
+      data
+    }, 202);
   });
 
   app.get("/admin/deliveries/:deliveryId", async (c) => {

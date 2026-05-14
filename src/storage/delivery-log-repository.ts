@@ -179,6 +179,47 @@ export class DeliveryLogRepository {
     return result.results.map((row) => this.toEntity(row));
   }
 
+  public async listFailedRetMinusTwo(input: {
+    limit: number;
+    source?: string;
+  }): Promise<DeliveryLog[]> {
+    const filters = ["status = 'failed'", "error LIKE 'iLink ret=-2%'"];
+    const bindings: Array<string | number> = [];
+
+    if (input.source) {
+      filters.push("source = ?");
+      bindings.push(input.source);
+    }
+
+    const result = await this.db
+      .prepare(
+        `
+          SELECT
+            delivery_id,
+            source,
+            trace_id,
+            dedupe_key,
+            idempotency_key,
+            text,
+            meta_json,
+            status,
+            attempts,
+            error,
+            response_code,
+            created_at,
+            updated_at
+          FROM delivery_log
+          WHERE ${filters.join(" AND ")}
+          ORDER BY created_at DESC, delivery_id DESC
+          LIMIT ?
+        `
+      )
+      .bind(...bindings, input.limit)
+      .all<DeliveryLogRow>();
+
+    return result.results.map((row) => this.toEntity(row));
+  }
+
   public async markRetrying(deliveryId: string, attempts: number, error: string, responseCode: number | null): Promise<void> {
     await this.update(deliveryId, "retrying", attempts, error, responseCode);
   }
@@ -189,6 +230,10 @@ export class DeliveryLogRepository {
 
   public async markFailed(deliveryId: string, attempts: number, error: string, responseCode: number | null): Promise<void> {
     await this.update(deliveryId, "failed", attempts, error, responseCode);
+  }
+
+  public async markQueuedForReplay(deliveryId: string): Promise<void> {
+    await this.update(deliveryId, "queued", 0, null, null);
   }
 
   private async getByIdempotencyKey(idempotencyKey: string): Promise<DeliveryLog | null> {

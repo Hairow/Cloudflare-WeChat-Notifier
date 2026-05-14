@@ -101,6 +101,22 @@ export interface DeliveryListResult {
 export interface QueueProcessResult {
   outcome: "ack" | "retry";
   delaySeconds?: number;
+  deliveryStatus?: DeliveryStatus | "not_found";
+  error?: string | null;
+  responseCode?: number | null;
+}
+
+export interface ReplayDeliveryResult {
+  deliveryId: string;
+  status: DeliveryStatus;
+  replayed: boolean;
+  error?: string | null;
+}
+
+export interface ReplayFailedRetMinusTwoResult {
+  items: ReplayDeliveryResult[];
+  limit: number;
+  source?: string;
 }
 
 export interface HealthResponse {
@@ -122,6 +138,8 @@ export interface DeliveryService {
   enqueueDelivery(source: string, payload: IncomingMessagePayload): Promise<EnqueueDeliveryResult>;
   listDeliveries(query: DeliveryListQuery): Promise<DeliveryListResult>;
   getDelivery(deliveryId: string): Promise<DeliveryLog | null>;
+  replayDelivery(deliveryId: string): Promise<ReplayDeliveryResult>;
+  replayFailedRetMinusTwo(query: { limit: number; source?: string }): Promise<ReplayFailedRetMinusTwoResult>;
   processQueuedDelivery(deliveryId: string, attempts: number): Promise<QueueProcessResult>;
   handleQueueProcessingError(deliveryId: string, attempts: number, error: unknown): Promise<QueueProcessResult>;
 }

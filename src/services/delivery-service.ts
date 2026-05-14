@@ -1,11 +1,21 @@
-import type { DeliveryListQuery, DeliveryListResult, DeliveryLog, EnqueueDeliveryResult, IncomingMessagePayload, QueueProcessResult } from "../contracts";
+import type {
+  DeliveryListQuery,
+  DeliveryListResult,
+  DeliveryLog,
+  EnqueueDeliveryResult,
+  IncomingMessagePayload,
+  QueueProcessResult,
+  ReplayDeliveryResult,
+  ReplayFailedRetMinusTwoResult
+} from "../contracts";
 import { IlinkClient } from "../ilink/client";
-import { isIlinkApiError, toErrorMessage } from "../lib/errors";
+import { AppError, isIlinkApiError, toErrorMessage } from "../lib/errors";
 import { createTraceId } from "../lib/id";
 import { BotStateRepository } from "../storage/bot-state-repository";
 import { DeliveryLogRepository } from "../storage/delivery-log-repository";
 
 const RETRYABLE_ATTEMPTS = 3;
+const RET_MINUS_TWO_PREFIX = "iLink ret=-2";
 
 export class DefaultDeliveryService {
   public constructor(
@@ -68,19 +78,81 @@ export class DefaultDeliveryService {
     return this.deliveryLogRepository.getById(deliveryId);
   }
 
+  public async replayDelivery(deliveryId: string): Promise<ReplayDeliveryResult> {
+    const delivery = await this.deliveryLogRepository.getById(deliveryId);
+    if (!delivery) {
+      throw new AppError(404, "delivery_not_found", "未找到对应的投递记录。");
+    }
+
+    if (delivery.status !== "failed" || !delivery.error?.startsWith(RET_MINUS_TWO_PREFIX)) {
+      throw new AppError(409, "delivery_not_replayable", "仅支持重放 failed 且错误为 iLink ret=-2 的投递记录。", {
+        status: delivery.status,
+        error: delivery.error
+      });
+    }
+
+    await this.deliveryLogRepository.markQueuedForReplay(deliveryId);
+    await this.sendDeliveryToQueue(deliveryId);
+
+    return {
+      deliveryId,
+      status: "queued",
+      replayed: true,
+      error: null
+    };
+  }
+
+  public async replayFailedRetMinusTwo(query: { limit: number; source?: string }): Promise<ReplayFailedRetMinusTwoResult> {
+    const deliveries = await this.deliveryLogRepository.listFailedRetMinusTwo(query);
+    const items: ReplayDeliveryResult[] = [];
+
+    for (const delivery of deliveries) {
+      try {
+        await this.deliveryLogRepository.markQueuedForReplay(delivery.deliveryId);
+        await this.sendDeliveryToQueue(delivery.deliveryId);
+        items.push({
+          deliveryId: delivery.deliveryId,
+          status: "queued",
+          replayed: true,
+          error: null
+        });
+      } catch (error) {
+        const message = toErrorMessage(error);
+        await this.deliveryLogRepository.markFailed(delivery.deliveryId, 0, message, null);
+        items.push({
+          deliveryId: delivery.deliveryId,
+          status: "failed",
+          replayed: false,
+          error: message
+        });
+      }
+    }
+
+    return {
+      items,
+      limit: query.limit,
+      source: query.source
+    };
+  }
+
   public async processQueuedDelivery(deliveryId: string, attempts: number): Promise<QueueProcessResult> {
     const delivery = await this.deliveryLogRepository.getById(deliveryId);
     if (!delivery) {
       return {
-        outcome: "ack"
+        outcome: "ack",
+        deliveryStatus: "not_found"
       };
     }
 
     const bot = await this.botRepository.getCurrent();
     if (!bot) {
-      await this.deliveryLogRepository.markFailed(deliveryId, attempts, "未找到已登录 bot，请重新登录。", null);
+      const message = "未找到已登录 bot，请重新登录。";
+      await this.deliveryLogRepository.markFailed(deliveryId, attempts, message, null);
       return {
-        outcome: "ack"
+        outcome: "ack",
+        deliveryStatus: "failed",
+        error: message,
+        responseCode: null
       };
     }
 
@@ -89,7 +161,10 @@ export class DefaultDeliveryService {
       await this.botRepository.updateStatus("needs_activation", message);
       await this.deliveryLogRepository.markFailed(deliveryId, attempts, message, null);
       return {
-        outcome: "ack"
+        outcome: "ack",
+        deliveryStatus: "failed",
+        error: message,
+        responseCode: null
       };
     }
 
@@ -98,7 +173,10 @@ export class DefaultDeliveryService {
       await this.botRepository.setLastError(null);
       await this.deliveryLogRepository.markDelivered(deliveryId, attempts, 200);
       return {
-        outcome: "ack"
+        outcome: "ack",
+        deliveryStatus: "delivered",
+        error: null,
+        responseCode: 200
       };
     } catch (error) {
       const message = toErrorMessage(error);
@@ -107,7 +185,10 @@ export class DefaultDeliveryService {
           await this.deliveryLogRepository.markRetrying(deliveryId, attempts, message, error.httpStatus ?? null);
           return {
             outcome: "retry",
-            delaySeconds: attempts * 5
+            delaySeconds: attempts * 5,
+            deliveryStatus: "retrying",
+            error: message,
+            responseCode: error.httpStatus ?? null
           };
         }
 
@@ -121,7 +202,10 @@ export class DefaultDeliveryService {
 
         await this.deliveryLogRepository.markFailed(deliveryId, attempts, message, error.httpStatus ?? null);
         return {
-          outcome: "ack"
+          outcome: "ack",
+          deliveryStatus: "failed",
+          error: message,
+          responseCode: error.httpStatus ?? null
         };
       }
 
@@ -129,14 +213,20 @@ export class DefaultDeliveryService {
         await this.deliveryLogRepository.markRetrying(deliveryId, attempts, message, null);
         return {
           outcome: "retry",
-          delaySeconds: attempts * 5
+          delaySeconds: attempts * 5,
+          deliveryStatus: "retrying",
+          error: message,
+          responseCode: null
         };
       }
 
       await this.botRepository.setLastError(message);
       await this.deliveryLogRepository.markFailed(deliveryId, attempts, message, null);
       return {
-        outcome: "ack"
+        outcome: "ack",
+        deliveryStatus: "failed",
+        error: message,
+        responseCode: null
       };
     }
   }
@@ -148,7 +238,8 @@ export class DefaultDeliveryService {
       const delivery = await this.deliveryLogRepository.getById(deliveryId);
       if (!delivery) {
         return {
-          outcome: "ack"
+          outcome: "ack",
+          deliveryStatus: "not_found"
         };
       }
 
@@ -156,23 +247,52 @@ export class DefaultDeliveryService {
         await this.deliveryLogRepository.markRetrying(deliveryId, attempts, message, null);
         return {
           outcome: "retry",
-          delaySeconds: Math.max(attempts, 1) * 5
+          delaySeconds: Math.max(attempts, 1) * 5,
+          deliveryStatus: "retrying",
+          error: message,
+          responseCode: null
         };
       }
 
       await this.deliveryLogRepository.markFailed(deliveryId, attempts, message, null);
       return {
-        outcome: "ack"
+        outcome: "ack",
+        deliveryStatus: "failed",
+        error: message,
+        responseCode: null
       };
     } catch {
       return attempts <= RETRYABLE_ATTEMPTS
         ? {
             outcome: "retry",
-            delaySeconds: Math.max(attempts, 1) * 5
+            delaySeconds: Math.max(attempts, 1) * 5,
+            deliveryStatus: "retrying",
+            error: message,
+            responseCode: null
           }
         : {
-            outcome: "ack"
+            outcome: "ack",
+            deliveryStatus: "failed",
+            error: message,
+            responseCode: null
           };
+    }
+  }
+
+  private async sendDeliveryToQueue(deliveryId: string): Promise<void> {
+    try {
+      await this.queue.send(
+        {
+          deliveryId
+        },
+        {
+          contentType: "json"
+        }
+      );
+    } catch (error) {
+      const message = `消息重新入队失败: ${toErrorMessage(error)}`;
+      await this.deliveryLogRepository.markFailed(deliveryId, 0, message, null);
+      throw new AppError(502, "delivery_replay_enqueue_failed", message);
     }
   }
 }

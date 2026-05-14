@@ -1,10 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { handleQueueBatch } from "../src/queue/consumer";
 import type { AppContext, AppServices, QueueDeliveryMessage } from "../src/contracts";
 
 const createServices = (outcome: "ack" | "retry", options?: {
   throwOnDeliveryIds?: string[];
   fallbackOutcome?: "ack" | "retry";
+  ackStatus?: "delivered" | "failed";
 }): AppServices => {
   const throwOnDeliveryIds = new Set(options?.throwOnDeliveryIds ?? []);
 
@@ -19,6 +20,8 @@ const createServices = (outcome: "ack" | "retry", options?: {
       enqueueDelivery: vi.fn(),
       listDeliveries: vi.fn(),
       getDelivery: vi.fn(),
+      replayDelivery: vi.fn(),
+      replayFailedRetMinusTwo: vi.fn(),
       processQueuedDelivery: vi.fn().mockImplementation(async (deliveryId: string) => {
         if (throwOnDeliveryIds.has(deliveryId)) {
           throw new Error("unexpected processing error");
@@ -30,7 +33,10 @@ const createServices = (outcome: "ack" | "retry", options?: {
               delaySeconds: 10
             }
           : {
-              outcome: "ack" as const
+              outcome: "ack" as const,
+              deliveryStatus: options?.ackStatus ?? ("delivered" as const),
+              error: options?.ackStatus === "failed" ? "iLink ret=-2 errcode=0" : null,
+              responseCode: 200
             };
       }),
       handleQueueProcessingError: vi.fn().mockResolvedValue(
@@ -86,6 +92,17 @@ const createMessage = (body: QueueDeliveryMessage, attempts = 1) => {
 };
 
 describe("queue consumer", () => {
+  const originalConsoleLog = console.log;
+  const originalConsoleWarn = console.warn;
+  const originalConsoleError = console.error;
+
+  afterEach(() => {
+    console.log = originalConsoleLog;
+    console.warn = originalConsoleWarn;
+    console.error = originalConsoleError;
+    vi.restoreAllMocks();
+  });
+
   it("should ack messages on success", async () => {
     const context = createContext("ack");
     const { message, state } = createMessage({ deliveryId: "delivery-1" });
@@ -153,5 +170,43 @@ describe("queue consumer", () => {
     });
     expect(second.state.acked).toBe(true);
     expect(context.services.delivery.processQueuedDelivery).toHaveBeenNthCalledWith(2, "delivery-2", 1);
+  });
+
+  it("should log business failure details before acking", async () => {
+    console.log = vi.fn();
+    console.warn = vi.fn();
+    console.error = vi.fn();
+
+    const context = {
+      config: {
+        adminToken: "admin-token",
+        webhookSharedToken: "webhook-token"
+      },
+      services: createServices("ack", {
+        ackStatus: "failed"
+      })
+    } satisfies AppContext;
+    const { message, state } = createMessage({ deliveryId: "delivery-1" }, 1);
+
+    const batch = {
+      queue: "ilink-notification-queue",
+      messages: [message]
+    } as unknown as MessageBatch<QueueDeliveryMessage>;
+
+    await handleQueueBatch(batch, context);
+
+    expect(state.acked).toBe(true);
+    expect(console.error).toHaveBeenCalledWith(
+      "[queue] delivery_acked",
+      expect.objectContaining({
+        component: "queue-consumer",
+        event: "delivery_acked",
+        deliveryId: "delivery-1",
+        attempts: 1,
+        deliveryStatus: "failed",
+        error: "iLink ret=-2 errcode=0",
+        responseCode: 200
+      })
+    );
   });
 });

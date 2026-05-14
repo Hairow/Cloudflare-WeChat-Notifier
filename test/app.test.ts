@@ -77,6 +77,24 @@ const createServices = (): AppServices => ({
       createdAt: "2026-03-26T00:00:00.000Z",
       updatedAt: "2026-03-26T00:00:00.000Z"
     }),
+    replayDelivery: vi.fn().mockResolvedValue({
+      deliveryId: "delivery-1",
+      status: "queued",
+      replayed: true,
+      error: null
+    }),
+    replayFailedRetMinusTwo: vi.fn().mockResolvedValue({
+      items: [
+        {
+          deliveryId: "delivery-1",
+          status: "queued",
+          replayed: true,
+          error: null
+        }
+      ],
+      limit: 20,
+      source: undefined
+    }),
     processQueuedDelivery: vi.fn().mockResolvedValue({
       outcome: "ack"
     }),
@@ -223,6 +241,38 @@ describe("app routes", () => {
     expect(body).toContain("failed");
     expect(body).toContain("github");
     expect(body).toContain("10");
+  });
+
+  it("should replay a single failed ret -2 delivery", async () => {
+    const context = createContext();
+    const app = createApp(context);
+
+    const response = await app.request("http://localhost/admin/deliveries/delivery-1/replay?token=admin-token", {
+      method: "POST"
+    });
+    const body = (await response.json()) as { code: number; data: { deliveryId: string; status: string } };
+
+    expect(response.status).toBe(202);
+    expect(body.data.deliveryId).toBe("delivery-1");
+    expect(body.data.status).toBe("queued");
+    expect(context.services.delivery.replayDelivery).toHaveBeenCalledWith("delivery-1");
+  });
+
+  it("should replay failed ret -2 deliveries in batches", async () => {
+    const context = createContext();
+    const app = createApp(context);
+
+    const response = await app.request("http://localhost/admin/deliveries/replay-ret2?token=admin-token&limit=5&source=github", {
+      method: "POST"
+    });
+    const body = (await response.json()) as { code: number; data: { items: Array<{ deliveryId: string }> } };
+
+    expect(response.status).toBe(202);
+    expect(body.data.items[0]?.deliveryId).toBe("delivery-1");
+    expect(context.services.delivery.replayFailedRetMinusTwo).toHaveBeenCalledWith({
+      limit: 5,
+      source: "github"
+    });
   });
 
   it("should return upstream diagnostics for ilink network failures", async () => {
