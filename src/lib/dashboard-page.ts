@@ -36,6 +36,9 @@ export const renderDashboardPage = (input: {
         --shadow: 0 24px 80px rgba(24, 39, 75, 0.12);
       }
       * { box-sizing: border-box; }
+      html {
+        overflow-x: hidden;
+      }
       body {
         margin: 0;
         font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -44,10 +47,11 @@ export const renderDashboardPage = (input: {
           radial-gradient(circle at top left, #eafaf6 0%, transparent 32%),
           radial-gradient(circle at top right, #ecf1ff 0%, transparent 30%),
           var(--bg);
+        overflow-x: hidden;
       }
       .shell {
         min-height: 100vh;
-        padding: 24px;
+        padding: clamp(12px, 2vw, 24px);
       }
       .stack {
         width: min(1320px, 100%);
@@ -63,25 +67,33 @@ export const renderDashboardPage = (input: {
         box-shadow: var(--shadow);
       }
       .hero {
-        padding: 28px;
+        padding: clamp(20px, 3vw, 28px);
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
         gap: 18px;
         flex-wrap: wrap;
       }
+      .hero > div:first-child,
+      .section-head > div:first-child {
+        flex: 1 1 420px;
+        min-width: 0;
+      }
       h1 {
         margin: 0 0 8px;
-        font-size: 34px;
+        font-size: clamp(28px, 4vw, 34px);
+        line-height: 1.15;
       }
       h2 {
         margin: 0;
         font-size: 24px;
+        line-height: 1.25;
       }
       p {
         margin: 0;
         color: var(--muted);
         line-height: 1.7;
+        overflow-wrap: anywhere;
       }
       .pill {
         display: inline-flex;
@@ -100,6 +112,7 @@ export const renderDashboardPage = (input: {
         gap: 12px;
         flex-wrap: wrap;
         align-items: center;
+        min-width: 0;
       }
       .hero-actions > *,
       .section-actions > * {
@@ -124,6 +137,8 @@ export const renderDashboardPage = (input: {
         line-height: 1.2;
         text-align: center;
         white-space: nowrap;
+        max-width: 100%;
+        touch-action: manipulation;
       }
       button.secondary,
       a.secondary {
@@ -137,9 +152,10 @@ export const renderDashboardPage = (input: {
         gap: 20px;
       }
       .section {
-        padding: 24px;
+        padding: clamp(18px, 2.4vw, 24px);
         display: grid;
         gap: 18px;
+        min-width: 0;
       }
       .section-head {
         display: flex;
@@ -158,6 +174,7 @@ export const renderDashboardPage = (input: {
         border-radius: 18px;
         background: #f8fafc;
         border: 1px solid var(--line);
+        min-width: 0;
       }
       .metric strong {
         display: block;
@@ -175,6 +192,7 @@ export const renderDashboardPage = (input: {
         border-radius: 18px;
         border: 1px solid var(--line);
         background: #f8fafc;
+        overflow-wrap: anywhere;
       }
       .status-banner strong {
         display: block;
@@ -210,11 +228,20 @@ export const renderDashboardPage = (input: {
         border: 1px solid var(--line);
         text-decoration: none;
         color: inherit;
+        min-width: 0;
+      }
+      .quick-link > div {
+        min-width: 0;
       }
       .quick-link small {
         color: var(--muted);
         display: block;
         margin-top: 4px;
+        overflow-wrap: anywhere;
+      }
+      .quick-link span {
+        flex: 0 0 auto;
+        font-weight: 800;
       }
       .form-grid {
         display: grid;
@@ -237,6 +264,7 @@ export const renderDashboardPage = (input: {
         background: #fff;
         color: var(--text);
         font: inherit;
+        min-width: 0;
       }
       textarea {
         min-height: 140px;
@@ -252,6 +280,7 @@ export const renderDashboardPage = (input: {
         background: #f8fafc;
         border: 1px solid var(--line);
         color: var(--muted);
+        overflow-wrap: anywhere;
       }
       .message-box.success {
         background: var(--success-soft);
@@ -263,8 +292,14 @@ export const renderDashboardPage = (input: {
         color: var(--danger);
         border-color: #fecaca;
       }
+      .table-wrap {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
       table {
         width: 100%;
+        min-width: 760px;
         border-collapse: collapse;
       }
       th,
@@ -278,6 +313,10 @@ export const renderDashboardPage = (input: {
       th {
         color: var(--muted);
         font-weight: 700;
+        white-space: nowrap;
+      }
+      td {
+        overflow-wrap: anywhere;
       }
       .badge {
         display: inline-flex;
@@ -303,12 +342,34 @@ export const renderDashboardPage = (input: {
         border-radius: 8px;
         padding: 2px 6px;
       }
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.58;
+      }
+      button:focus-visible,
+      a.button:focus-visible,
+      .quick-link:focus-visible,
+      input:focus-visible,
+      textarea:focus-visible,
+      select:focus-visible {
+        outline: 3px solid rgba(15, 118, 110, 0.28);
+        outline-offset: 2px;
+      }
       @media (max-width: 1100px) {
         .grid {
           grid-template-columns: 1fr;
         }
       }
       @media (max-width: 720px) {
+        .stack {
+          gap: 14px;
+        }
+        .card {
+          border-radius: 20px;
+        }
+        .hero {
+          gap: 16px;
+        }
         .metrics {
           grid-template-columns: 1fr;
         }
@@ -318,7 +379,13 @@ export const renderDashboardPage = (input: {
         }
         .hero-actions > *,
         .section-actions > * {
-          flex: 1 1 180px;
+          flex: 1 1 100%;
+        }
+        .quick-link {
+          align-items: flex-start;
+        }
+        .quick-link span {
+          padding-top: 2px;
         }
       }
     </style>
@@ -431,7 +498,7 @@ export const renderDashboardPage = (input: {
             </div>
           </div>
 
-          <div style="overflow:auto">
+          <div class="table-wrap">
             <table>
               <thead>
                 <tr>

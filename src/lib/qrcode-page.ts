@@ -34,17 +34,21 @@ export const renderQrcodeLoginPage = (input: {
         --accent-soft: #dff5f2;
       }
       * { box-sizing: border-box; }
+      html {
+        overflow-x: hidden;
+      }
       body {
         margin: 0;
         font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
         background: radial-gradient(circle at top, #eefbf8 0%, var(--bg) 52%, #edf2ff 100%);
         color: var(--text);
+        overflow-x: hidden;
       }
       .shell {
         min-height: 100vh;
         display: grid;
         place-items: center;
-        padding: 24px;
+        padding: clamp(12px, 3vw, 24px);
       }
       .card {
         width: min(920px, 100%);
@@ -57,31 +61,36 @@ export const renderQrcodeLoginPage = (input: {
       }
       .grid {
         display: grid;
-        grid-template-columns: 360px 1fr;
+        grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
       }
       .qr {
         background: linear-gradient(160deg, #ffffff 0%, #eef7ff 100%);
-        padding: 32px;
+        padding: clamp(22px, 4vw, 32px);
         display: grid;
         place-items: center;
         border-right: 1px solid var(--line);
+        min-width: 0;
       }
       .qr svg {
-        width: 100%;
+        display: block;
+        width: min(300px, 100%);
         max-width: 300px;
         height: auto;
       }
       .content {
-        padding: 32px;
+        padding: clamp(22px, 4vw, 32px);
+        min-width: 0;
       }
       h1 {
         margin: 0 0 8px;
-        font-size: 28px;
+        font-size: clamp(26px, 5vw, 28px);
+        line-height: 1.18;
       }
       p {
         margin: 0;
         color: var(--muted);
         line-height: 1.7;
+        overflow-wrap: anywhere;
       }
       .meta {
         margin-top: 18px;
@@ -94,6 +103,8 @@ export const renderQrcodeLoginPage = (input: {
         background: #f7fafc;
         border: 1px solid var(--line);
         font-size: 14px;
+        min-width: 0;
+        overflow-wrap: anywhere;
       }
       .status {
         margin-top: 20px;
@@ -102,24 +113,36 @@ export const renderQrcodeLoginPage = (input: {
         background: var(--accent-soft);
         color: var(--accent);
         font-weight: 600;
+        overflow-wrap: anywhere;
       }
       .actions {
         margin-top: 18px;
         display: flex;
         gap: 12px;
         flex-wrap: wrap;
+        align-items: center;
+        min-width: 0;
       }
       button,
       a.button {
         appearance: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         border: 0;
         border-radius: 999px;
         padding: 12px 18px;
+        min-height: 46px;
         background: var(--text);
         color: #fff;
         text-decoration: none;
         font-weight: 600;
         cursor: pointer;
+        line-height: 1.2;
+        text-align: center;
+        white-space: nowrap;
+        max-width: 100%;
+        touch-action: manipulation;
       }
       button.secondary,
       a.secondary {
@@ -137,10 +160,28 @@ export const renderQrcodeLoginPage = (input: {
         background: #f3f5f8;
         border-radius: 8px;
         padding: 2px 6px;
+        overflow-wrap: anywhere;
+      }
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.58;
+      }
+      button:focus-visible,
+      a.button:focus-visible {
+        outline: 3px solid rgba(15, 118, 110, 0.28);
+        outline-offset: 2px;
       }
       @media (max-width: 860px) {
         .grid { grid-template-columns: 1fr; }
         .qr { border-right: 0; border-bottom: 1px solid var(--line); }
+      }
+      @media (max-width: 560px) {
+        .card {
+          border-radius: 20px;
+        }
+        .actions > * {
+          flex: 1 1 100%;
+        }
       }
     </style>
   </head>
