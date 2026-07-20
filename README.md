@@ -186,14 +186,14 @@ npm run deploy
 |---|---|---|
 | 总览页 | `/admin/dashboard?token=ADMIN_TOKEN` | 查看 bot 状态、手动激活、测试发信、最近日志 |
 | 二维码页 | `/admin/bot/login/qrcode/page?token=ADMIN_TOKEN` | 浏览器直接展示登录二维码并自动轮询扫码状态 |
-| 日志中心 | `/admin/deliveries/page?token=ADMIN_TOKEN` | 筛选日志、查看详情、自动刷新 |
+| 日志中心 | `/admin/deliveries/page?token=ADMIN_TOKEN` | 筛选、翻页、查看详情、自动刷新 |
 
 示例：
 
 ```text
 http://127.0.0.1:8787/admin/dashboard?token=ADMIN_TOKEN&refresh=10&logsLimit=12
 http://127.0.0.1:8787/admin/bot/login/qrcode/page?token=ADMIN_TOKEN
-http://127.0.0.1:8787/admin/deliveries/page?token=ADMIN_TOKEN&status=failed&limit=50&refresh=10
+http://127.0.0.1:8787/admin/deliveries/page?token=ADMIN_TOKEN&status=failed&limit=50&page=2&refresh=10
 ```
 
 ---
@@ -215,8 +215,10 @@ http://127.0.0.1:8787/admin/deliveries/page?token=ADMIN_TOKEN&status=failed&limi
 | `GET` | `/admin/bot/login/status/:sessionId` | `Authorization: Bearer ADMIN_TOKEN` 或 `?token=` | 查询扫码状态 |
 | `POST` | `/admin/bot/activate` | `Authorization: Bearer ADMIN_TOKEN` 或 `?token=` | 激活 bot，尝试获取 `context_token` |
 | `GET` | `/admin/bot/status` | `Authorization: Bearer ADMIN_TOKEN` 或 `?token=` | 查询当前 bot 状态 |
-| `GET` | `/admin/deliveries` | `Authorization: Bearer ADMIN_TOKEN` 或 `?token=` | 查询投递日志列表 |
+| `GET` | `/admin/deliveries` | `Authorization: Bearer ADMIN_TOKEN` 或 `?token=` | 查询投递日志列表；支持 `page`（默认 `1`）和 `limit` |
 | `GET` | `/admin/deliveries/:deliveryId` | `Authorization: Bearer ADMIN_TOKEN` 或 `?token=` | 查询单条投递详情 |
+| `POST` | `/admin/deliveries/batch/replay` | `Authorization: Bearer ADMIN_TOKEN` 或 `?token=` | 批量重发指定的失败投递，JSON 传入 `deliveryIds`（最多 100 条） |
+| `POST` | `/admin/deliveries/batch/delete` | `Authorization: Bearer ADMIN_TOKEN` 或 `?token=` | 批量删除已结束的投递日志并移除对应幂等记录，JSON 传入 `deliveryIds`（最多 100 条） |
 | `POST` | `/api/send` | `Authorization: Bearer ADMIN_TOKEN` | 管理员手动发送测试消息 |
 | `POST` | `/webhook/:source` | `X-Webhook-Token` | 外部系统推送通知入口 |
 

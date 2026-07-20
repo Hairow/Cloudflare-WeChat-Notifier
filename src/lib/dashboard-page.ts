@@ -139,12 +139,23 @@ export const renderDashboardPage = (input: {
         white-space: nowrap;
         max-width: 100%;
         touch-action: manipulation;
+        transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease;
       }
       button.secondary,
       a.secondary {
         background: transparent;
         color: var(--text);
         border: 1px solid var(--line);
+      }
+      button:not(:disabled):hover,
+      a.button:hover {
+        box-shadow: 0 10px 22px rgba(22, 32, 47, 0.14);
+        transform: translateY(-1px);
+      }
+      button.secondary:not(:disabled):hover,
+      a.secondary:hover {
+        background: #ffffff;
+        border-color: #aebdcd;
       }
       .grid {
         display: grid;
@@ -229,6 +240,7 @@ export const renderDashboardPage = (input: {
         text-decoration: none;
         color: inherit;
         min-width: 0;
+        transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
       }
       .quick-link > div {
         min-width: 0;
@@ -242,6 +254,11 @@ export const renderDashboardPage = (input: {
       .quick-link span {
         flex: 0 0 auto;
         font-weight: 800;
+      }
+      .quick-link:hover {
+        border-color: #aebdcd;
+        box-shadow: 0 10px 26px rgba(24, 39, 75, 0.08);
+        transform: translateY(-1px);
       }
       .form-grid {
         display: grid;
@@ -318,6 +335,12 @@ export const renderDashboardPage = (input: {
       td {
         overflow-wrap: anywhere;
       }
+      tbody tr {
+        transition: background 160ms ease;
+      }
+      tbody tr:hover {
+        background: #f8fafc;
+      }
       .badge {
         display: inline-flex;
         padding: 6px 10px;
@@ -388,6 +411,18 @@ export const renderDashboardPage = (input: {
           padding-top: 2px;
         }
       }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          transition: none !important;
+        }
+        button:not(:disabled):hover,
+        a.button:hover,
+        .quick-link:hover {
+          transform: none;
+        }
+      }
     </style>
   </head>
   <body>
@@ -397,7 +432,7 @@ export const renderDashboardPage = (input: {
           <div>
             <h1>iLink 管理总览</h1>
             <p>把 bot 登录、激活、测试发信和最近日志集中在一个页面里，适合部署后做日常巡检和快速操作。</p>
-            <div class="pill" id="hero-pill">正在加载 bot 状态...</div>
+            <div class="pill" id="hero-pill" aria-live="polite">正在加载 bot 状态...</div>
           </div>
           <div class="hero-actions">
             <button id="refresh-all-btn">刷新总览</button>
@@ -438,7 +473,7 @@ export const renderDashboardPage = (input: {
               </div>
             </div>
 
-            <div class="status-banner" id="bot-banner">
+            <div class="status-banner" id="bot-banner" aria-live="polite">
               <strong>状态提示</strong>
               <div id="bot-banner-text">正在读取 bot 状态...</div>
             </div>
@@ -482,7 +517,7 @@ export const renderDashboardPage = (input: {
                 <button id="send-btn">发送测试消息</button>
               </div>
               <div class="form-note">如果 bot 处于 <code>logged_in</code> / <code>needs_activation</code>，请先点击左侧“尝试激活”。</div>
-              <div class="message-box" id="send-message">等待发送操作。</div>
+              <div class="message-box" id="send-message" aria-live="polite">等待发送操作。</div>
             </div>
           </section>
         </section>
@@ -510,7 +545,7 @@ export const renderDashboardPage = (input: {
                   <th>响应</th>
                 </tr>
               </thead>
-              <tbody id="recent-log-body">
+              <tbody id="recent-log-body" aria-live="polite">
                 <tr><td colspan="6" class="tiny">正在加载日志...</td></tr>
               </tbody>
             </table>
@@ -602,71 +637,74 @@ export const renderDashboardPage = (input: {
 
       const loadBotStatus = async () => {
         setHeroPill("正在刷新 bot 状态...", "info");
-        const response = await fetch("/admin/bot/status?token=" + encodeURIComponent(adminToken));
-        const payload = await response.json();
-        if (!response.ok) {
+        try {
+          const response = await fetch("/admin/bot/status?token=" + encodeURIComponent(adminToken));
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.message || "无法读取状态");
+          const data = payload.data;
+          botStatusValue.textContent = data.status || "-";
+          botIdValue.textContent = data.botId || "-";
+          botUpdatedValue.textContent = data.updatedAt || "-";
+          const hint = statusHint(data.status, data.lastError);
+          setHeroPill("当前状态：" + data.status, hint.tone === "warning" ? "info" : hint.tone);
+          setBanner(hint.title, hint.text, hint.tone);
+        } catch (error) {
           setHeroPill("bot 状态读取失败", "error");
-          setBanner("读取失败", payload.message || "无法读取状态。", "error");
-          return;
+          setBanner("读取失败", error instanceof Error ? error.message : "网络请求失败", "error");
         }
-
-        const data = payload.data;
-        botStatusValue.textContent = data.status || "-";
-        botIdValue.textContent = data.botId || "-";
-        botUpdatedValue.textContent = data.updatedAt || "-";
-        const hint = statusHint(data.status, data.lastError);
-        setHeroPill("当前状态：" + data.status, hint.tone === "warning" ? "info" : hint.tone);
-        setBanner(hint.title, hint.text, hint.tone);
       };
 
       const loadRecentLogs = async () => {
-        const response = await fetch(
-          "/admin/deliveries?token=" + encodeURIComponent(adminToken) + "&limit=" + encodeURIComponent(String(logsLimit))
-        );
-        const payload = await response.json();
-        if (!response.ok) {
-          recentLogBody.innerHTML = '<tr><td colspan="6" class="tiny">日志读取失败：' + escapeHtml(payload.message || "unknown") + '</td></tr>';
-          return;
+        try {
+          const response = await fetch(
+            "/admin/deliveries?token=" + encodeURIComponent(adminToken) + "&limit=" + encodeURIComponent(String(logsLimit))
+          );
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.message || "未知错误");
+          const items = payload.data.items || [];
+          if (!items.length) {
+            recentLogBody.innerHTML = '<tr><td colspan="6" class="tiny">暂无日志。</td></tr>';
+            return;
+          }
+          recentLogBody.innerHTML = items
+            .map((item) => {
+              const preview = item.text.length > 90 ? item.text.slice(0, 90) + "..." : item.text;
+              return '<tr>'
+                + '<td><div>' + escapeHtml(item.createdAt) + '</div><div class="tiny"><code>' + escapeHtml(item.deliveryId) + '</code></div></td>'
+                + '<td><span class="badge ' + badgeClass(item.status) + '">' + escapeHtml(item.status) + '</span></td>'
+                + '<td>' + escapeHtml(item.source) + '</td>'
+                + '<td>' + escapeHtml(preview) + '</td>'
+                + '<td>' + escapeHtml(String(item.attempts)) + '</td>'
+                + '<td>' + escapeHtml(String(item.responseCode ?? "-")) + '</td>'
+                + '</tr>';
+            })
+            .join("");
+        } catch (error) {
+          recentLogBody.innerHTML = '<tr><td colspan="6" class="tiny">日志读取失败：'
+            + escapeHtml(error instanceof Error ? error.message : "网络请求失败") + '</td></tr>';
         }
-
-        const items = payload.data.items || [];
-        if (!items.length) {
-          recentLogBody.innerHTML = '<tr><td colspan="6" class="tiny">暂无日志。</td></tr>';
-          return;
-        }
-
-        recentLogBody.innerHTML = items
-          .map((item) => {
-            const preview = item.text.length > 90 ? item.text.slice(0, 90) + "..." : item.text;
-            return '<tr>'
-              + '<td><div>' + escapeHtml(item.createdAt) + '</div><div class="tiny"><code>' + escapeHtml(item.deliveryId) + '</code></div></td>'
-              + '<td><span class="badge ' + badgeClass(item.status) + '">' + escapeHtml(item.status) + '</span></td>'
-              + '<td>' + escapeHtml(item.source) + '</td>'
-              + '<td>' + escapeHtml(preview) + '</td>'
-              + '<td>' + escapeHtml(String(item.attempts)) + '</td>'
-              + '<td>' + escapeHtml(String(item.responseCode ?? "-")) + '</td>'
-              + '</tr>';
-          })
-          .join("");
       };
 
       const activateBot = async () => {
         activateBtn.disabled = true;
+        activateBtn.textContent = "正在激活...";
         setHeroPill("正在激活 bot...", "info");
-        const response = await fetch("/admin/bot/activate?token=" + encodeURIComponent(adminToken), {
-          method: "POST"
-        });
-        const payload = await response.json();
-        if (!response.ok) {
+        try {
+          const response = await fetch("/admin/bot/activate?token=" + encodeURIComponent(adminToken), {
+            method: "POST"
+          });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.message || "未知错误");
+          setBanner("激活结果", payload.data.message, payload.data.status === "ready" ? "success" : "warning");
+          await loadBotStatus();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "网络请求失败";
           setHeroPill("激活失败", "error");
-          setBanner("激活失败", payload.message || "未知错误", "error");
+          setBanner("激活失败", message, "error");
+        } finally {
           activateBtn.disabled = false;
-          return;
+          activateBtn.textContent = "尝试激活";
         }
-
-        setBanner("激活结果", payload.data.message, payload.data.status === "ready" ? "success" : "warning");
-        await loadBotStatus();
-        activateBtn.disabled = false;
       };
 
       const sendTestMessage = async () => {
@@ -678,33 +716,35 @@ export const renderDashboardPage = (input: {
         }
 
         sendBtn.disabled = true;
+        sendBtn.textContent = "提交中...";
         sendMessage.className = "message-box";
         sendMessage.textContent = "正在提交发送请求...";
 
-        const response = await fetch("/api/send", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + adminToken
-          },
-          body: JSON.stringify({
-            text,
-            dedupeKey: sendDedupe.value.trim() || undefined
-          })
-        });
-        const payload = await response.json();
-        if (!response.ok) {
+        try {
+          const response = await fetch("/api/send", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer " + adminToken
+            },
+            body: JSON.stringify({
+              text,
+              dedupeKey: sendDedupe.value.trim() || undefined
+            })
+          });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.message || "未知错误");
+          sendMessage.className = "message-box success";
+          sendMessage.textContent = "已入队：deliveryId=" + payload.data.deliveryId + "，状态=" + payload.data.status;
+          sendText.value = "";
+          await loadRecentLogs();
+        } catch (error) {
           sendMessage.className = "message-box error";
-          sendMessage.textContent = "发送失败：" + (payload.message || "未知错误");
+          sendMessage.textContent = "发送失败：" + (error instanceof Error ? error.message : "网络请求失败");
+        } finally {
           sendBtn.disabled = false;
-          return;
+          sendBtn.textContent = "发送测试消息";
         }
-
-        sendMessage.className = "message-box success";
-        sendMessage.textContent = "已入队：deliveryId=" + payload.data.deliveryId + "，状态=" + payload.data.status;
-        sendBtn.disabled = false;
-        sendText.value = "";
-        await loadRecentLogs();
       };
 
       document.getElementById("refresh-all-btn").addEventListener("click", async () => {
@@ -716,13 +756,14 @@ export const renderDashboardPage = (input: {
       activateBtn.addEventListener("click", activateBot);
       sendBtn.addEventListener("click", sendTestMessage);
 
-      window.setInterval(async () => {
-        await loadBotStatus();
-        await loadRecentLogs();
+      const scheduleRefresh = () => window.setTimeout(async () => {
+        await Promise.all([loadBotStatus(), loadRecentLogs()]);
+        scheduleRefresh();
       }, refreshSeconds * 1000);
 
       loadBotStatus();
       loadRecentLogs();
+      if (refreshSeconds > 0) scheduleRefresh();
     </script>
   </body>
 </html>`;

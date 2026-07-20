@@ -1,5 +1,6 @@
 import type {
   CompensateStaleQueuedResult,
+  DeleteDeliveriesResult,
   DeliveryListQuery,
   DeliveryListResult,
   DeliveryLog,
@@ -8,6 +9,7 @@ import type {
   KeepaliveConfig,
   QueueProcessResult,
   ReplayDeliveryResult,
+  ReplayDeliveriesResult,
   ReplayFailedRetMinusTwoResult,
   ScheduledKeepaliveResult
 } from "../contracts";
@@ -18,8 +20,8 @@ import { BotStateRepository } from "../storage/bot-state-repository";
 import { DeliveryLogRepository } from "../storage/delivery-log-repository";
 
 const RETRYABLE_ATTEMPTS = 3;
-const RET_MINUS_TWO_PREFIX = "iLink ret=-2";
 const MS_PER_HOUR = 60 * 60 * 1000;
+const REPLAYABLE_STATUS_MESSAGE = "仅支持重发 failed 状态的投递记录。";
 
 export class DefaultDeliveryService {
   public constructor(
@@ -69,10 +71,16 @@ export class DefaultDeliveryService {
   }
 
   public async listDeliveries(query: DeliveryListQuery): Promise<DeliveryListResult> {
-    const items = await this.deliveryLogRepository.list(query);
+    const total = await this.deliveryLogRepository.count(query);
+    const totalPages = Math.max(1, Math.ceil(total / query.limit));
+    const page = Math.min(Math.max(query.page, 1), totalPages);
+    const items = await this.deliveryLogRepository.list({ ...query, page });
     return {
       items,
       limit: query.limit,
+      page,
+      total,
+      totalPages,
       status: query.status,
       source: query.source
     };
@@ -88,21 +96,55 @@ export class DefaultDeliveryService {
       throw new AppError(404, "delivery_not_found", "未找到对应的投递记录。");
     }
 
-    if (delivery.status !== "failed" || !delivery.error?.startsWith(RET_MINUS_TWO_PREFIX)) {
-      throw new AppError(409, "delivery_not_replayable", "仅支持重放 failed 且错误为 iLink ret=-2 的投递记录。", {
-        status: delivery.status,
-        error: delivery.error
-      });
+    return this.replayFailedDelivery(delivery);
+  }
+
+  public async replayDeliveries(deliveryIds: string[]): Promise<ReplayDeliveriesResult> {
+    const items: ReplayDeliveryResult[] = [];
+
+    for (const deliveryId of deliveryIds) {
+      const delivery = await this.deliveryLogRepository.getById(deliveryId);
+      if (!delivery) {
+        items.push({
+          deliveryId,
+          status: "failed",
+          replayed: false,
+          error: "未找到对应的投递记录。"
+        });
+        continue;
+      }
+
+      if (delivery.status !== "failed") {
+        items.push({
+          deliveryId,
+          status: delivery.status,
+          replayed: false,
+          error: REPLAYABLE_STATUS_MESSAGE
+        });
+        continue;
+      }
+
+      try {
+        items.push(await this.replayFailedDelivery(delivery));
+      } catch (error) {
+        items.push({
+          deliveryId,
+          status: "failed",
+          replayed: false,
+          error: toErrorMessage(error)
+        });
+      }
     }
 
-    await this.deliveryLogRepository.markQueuedForReplay(deliveryId);
-    await this.sendDeliveryToQueue(deliveryId);
+    return { items };
+  }
 
+  public async deleteCompletedDeliveries(deliveryIds: string[]): Promise<DeleteDeliveriesResult> {
+    const deleted = await this.deliveryLogRepository.deleteCompletedByIds(deliveryIds);
     return {
-      deliveryId,
-      status: "queued",
-      replayed: true,
-      error: null
+      selected: deliveryIds.length,
+      deleted,
+      skipped: deliveryIds.length - deleted
     };
   }
 
@@ -194,7 +236,7 @@ export class DefaultDeliveryService {
       };
     }
 
-    const latest = (await this.listDeliveries({ limit: 1, source: config.source })).items[0] ?? null;
+    const latest = (await this.listDeliveries({ limit: 1, page: 1, source: config.source })).items[0] ?? null;
     const intervalMs = config.intervalHours * MS_PER_HOUR;
     const nextDueAt = latest ? new Date(new Date(latest.createdAt).getTime() + intervalMs) : null;
 
@@ -373,6 +415,25 @@ export class DefaultDeliveryService {
             responseCode: null
           };
     }
+  }
+
+  private async replayFailedDelivery(delivery: DeliveryLog): Promise<ReplayDeliveryResult> {
+    if (delivery.status !== "failed") {
+      throw new AppError(409, "delivery_not_replayable", REPLAYABLE_STATUS_MESSAGE, {
+        status: delivery.status,
+        error: delivery.error
+      });
+    }
+
+    await this.deliveryLogRepository.markQueuedForReplay(delivery.deliveryId);
+    await this.sendDeliveryToQueue(delivery.deliveryId);
+
+    return {
+      deliveryId: delivery.deliveryId,
+      status: "queued",
+      replayed: true,
+      error: null
+    };
   }
 
   private async sendDeliveryToQueue(deliveryId: string): Promise<void> {

@@ -11,6 +11,7 @@ export const renderDeliveryLogPage = (input: {
   initialStatus?: string;
   initialSource?: string;
   initialLimit: number;
+  initialPage: number;
   initialRefreshSeconds: number;
 }): string => {
   const escapedToken = escapeHtml(input.adminToken);
@@ -117,7 +118,7 @@ export const renderDeliveryLogPage = (input: {
         color: var(--muted);
         font-weight: 600;
       }
-      input,
+      input:not([type="checkbox"]),
       select {
         width: 100%;
         border: 1px solid var(--line);
@@ -156,6 +157,7 @@ export const renderDeliveryLogPage = (input: {
         white-space: nowrap;
         max-width: 100%;
         touch-action: manipulation;
+        transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease;
       }
       button.secondary,
       a.secondary {
@@ -163,18 +165,35 @@ export const renderDeliveryLogPage = (input: {
         color: var(--text);
         border: 1px solid var(--line);
       }
-      .dashboard {
-        display: grid;
-        grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.8fr);
-        gap: 20px;
+      button:not(:disabled):hover,
+      a.button:hover {
+        box-shadow: 0 10px 22px rgba(22, 32, 47, 0.14);
+        transform: translateY(-1px);
       }
-      .table-card,
-      .detail-card {
+      button.secondary:not(:disabled):hover,
+      a.secondary:hover {
+        background: #ffffff;
+        border-color: #aebdcd;
+      }
+      button.danger {
+        background: #b91c1c;
+      }
+      button.danger:not(:disabled):hover {
+        background: #991b1b;
+      }
+      .table-card {
         overflow: hidden;
         min-width: 0;
       }
       .section-head {
         padding: 22px 24px 0;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+      }
+      .section-head > div {
+        min-width: 0;
       }
       .section-head h2 {
         margin: 0 0 6px;
@@ -183,14 +202,59 @@ export const renderDeliveryLogPage = (input: {
       .section-head p {
         font-size: 14px;
       }
+      .select-all-page-btn {
+        min-height: 40px;
+        padding: 9px 12px;
+      }
+      .bulk-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        margin: 16px 24px 0;
+        padding: 14px 16px;
+        border: 1px solid #fed7aa;
+        border-radius: 16px;
+        background: #fff7ed;
+      }
+      .bulk-actions[hidden] {
+        display: none;
+      }
+      .bulk-actions p {
+        font-size: 13px;
+      }
+      .bulk-actions-controls {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
       .table-wrap {
         padding: 18px 24px 24px;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
       }
+      .pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 0 24px 24px;
+      }
+      .pagination-summary {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .pagination-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .pagination-actions button {
+        min-width: 96px;
+      }
       table {
         width: 100%;
-        min-width: 860px;
+        min-width: 920px;
         border-collapse: collapse;
       }
       th,
@@ -205,6 +269,23 @@ export const renderDeliveryLogPage = (input: {
         color: var(--muted);
         font-weight: 700;
         white-space: nowrap;
+      }
+      .select-cell {
+        width: 46px;
+      }
+      input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        margin: 2px 0;
+        padding: 0;
+        accent-color: var(--accent);
+      }
+      tbody tr {
+        transition: background 160ms ease;
+      }
+      tbody tr:hover,
+      tbody tr.selected {
+        background: #f8fafc;
       }
       td code {
         font-size: 12px;
@@ -227,6 +308,15 @@ export const renderDeliveryLogPage = (input: {
         line-height: 1.6;
         word-break: break-word;
       }
+      .row-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .row-actions button {
+        min-height: 40px;
+        padding: 9px 12px;
+      }
       .mono {
         font-family: Consolas, "SFMono-Regular", monospace;
         background: #f4f7fb;
@@ -234,9 +324,38 @@ export const renderDeliveryLogPage = (input: {
         padding: 2px 6px;
       }
       .detail-box {
-        padding: 18px 24px 24px;
         display: grid;
         gap: 14px;
+      }
+      .detail-dialog {
+        width: min(760px, calc(100vw - 32px));
+        max-height: min(82dvh, 860px);
+        padding: 0;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: var(--card);
+        color: var(--text);
+        box-shadow: var(--shadow);
+      }
+      .detail-dialog::backdrop {
+        background: rgba(15, 23, 42, 0.52);
+        backdrop-filter: blur(2px);
+      }
+      .detail-dialog-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 22px 24px 0;
+      }
+      .detail-dialog-head h2 {
+        margin: 0 0 6px;
+        font-size: 22px;
+      }
+      .detail-dialog-content {
+        max-height: min(66dvh, 700px);
+        overflow: auto;
+        padding: 18px 24px 24px;
       }
       .detail-state {
         padding: 14px 16px;
@@ -253,7 +372,8 @@ export const renderDeliveryLogPage = (input: {
         background: #111827;
         color: #e5eefb;
         overflow: auto;
-        min-height: 320px;
+        min-height: 240px;
+        max-height: min(50dvh, 560px);
         max-width: 100%;
         font-size: 13px;
         line-height: 1.6;
@@ -263,6 +383,11 @@ export const renderDeliveryLogPage = (input: {
       .tiny {
         font-size: 13px;
         color: var(--muted);
+      }
+      .credential-note {
+        margin: 0;
+        color: #92400e;
+        font-size: 13px;
       }
       button:disabled {
         cursor: not-allowed;
@@ -274,11 +399,6 @@ export const renderDeliveryLogPage = (input: {
       select:focus-visible {
         outline: 3px solid rgba(15, 118, 110, 0.28);
         outline-offset: 2px;
-      }
-      @media (max-width: 1100px) {
-        .dashboard {
-          grid-template-columns: 1fr;
-        }
       }
       @media (max-width: 720px) {
         .stack {
@@ -293,11 +413,103 @@ export const renderDeliveryLogPage = (input: {
         .actions > * {
           flex: 1 1 100%;
         }
-        .section-head,
+        .section-head {
+          align-items: stretch;
+          flex-direction: column;
+        }
+        .select-all-page-btn {
+          width: 100%;
+        }
+        .bulk-actions {
+          align-items: stretch;
+          flex-direction: column;
+          margin: 14px 18px 0;
+        }
+        .bulk-actions-controls {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          width: 100%;
+        }
+        .bulk-actions-controls button {
+          width: 100%;
+        }
         .table-wrap,
-        .detail-box {
+        .pagination,
+        .detail-dialog-head,
+        .detail-dialog-content {
           padding-left: 18px;
           padding-right: 18px;
+        }
+        .pagination {
+          align-items: stretch;
+          flex-direction: column;
+          gap: 10px;
+          padding-bottom: 18px;
+        }
+        .pagination-actions {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          width: 100%;
+        }
+        .pagination-actions button {
+          width: 100%;
+        }
+        .detail-dialog {
+          width: min(100vw - 20px, 760px);
+          border-radius: 20px;
+        }
+        .detail-dialog-head {
+          gap: 12px;
+        }
+        table,
+        tbody,
+        tr,
+        td {
+          display: block;
+          min-width: 0;
+          width: 100%;
+        }
+        thead {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          overflow: hidden;
+          clip: rect(0 0 0 0);
+        }
+        tbody {
+          display: grid;
+          gap: 14px;
+        }
+        tbody tr {
+          padding: 14px;
+          border: 1px solid var(--line);
+          border-radius: 16px;
+        }
+        tbody td {
+          display: grid;
+          grid-template-columns: 88px minmax(0, 1fr);
+          gap: 10px;
+          padding: 8px 0;
+          border: 0;
+        }
+        tbody td::before {
+          content: attr(data-label);
+          color: var(--muted);
+          font-weight: 700;
+        }
+        tbody td[colspan]::before {
+          content: none;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          transition: none !important;
+        }
+        button:not(:disabled):hover,
+        a.button:hover {
+          transform: none;
         }
       }
     </style>
@@ -310,9 +522,10 @@ export const renderDeliveryLogPage = (input: {
             <div>
               <h1>投递日志中心</h1>
               <p>复用现有管理接口的只读日志页，支持状态筛选、按来源过滤、自动刷新和单条详情查看。</p>
-              <div class="pill" id="status-pill">正在准备日志视图...</div>
+              <div class="pill" id="status-pill" aria-live="polite">正在准备日志视图...</div>
             </div>
             <div class="actions">
+              <a class="button secondary" href="/admin/dashboard?token=${escapedToken}">返回管理主页</a>
               <a class="button secondary" href="/admin/bot/login/qrcode/page?token=${escapedToken}">登录二维码页</a>
               <button id="refresh-btn">手动刷新</button>
             </div>
@@ -355,26 +568,37 @@ export const renderDeliveryLogPage = (input: {
               </label>
               <label>
                 当前 API
-                <input id="api-url" readonly />
+                <input id="api-url" readonly aria-describedby="credential-note" />
               </label>
             </div>
             <div class="actions">
               <button id="apply-btn">应用筛选</button>
-              <button class="secondary" id="copy-url-btn">复制 API 地址</button>
+              <button class="secondary" id="copy-url-btn">复制含凭证地址</button>
             </div>
+            <p class="credential-note" id="credential-note">页面默认隐藏管理 token；复制的完整地址包含凭证，请勿转发或粘贴到公开位置。</p>
           </div>
         </section>
 
-        <section class="dashboard">
-          <section class="card table-card">
+        <section class="card table-card">
             <div class="section-head">
-              <h2>最近日志</h2>
-              <p id="table-subtitle">正在加载...</p>
+              <div>
+                <h2>最近日志</h2>
+                <p id="table-subtitle">正在加载...</p>
+              </div>
+              <button class="secondary select-all-page-btn" id="select-all-page-btn" type="button" disabled>全选本页</button>
+            </div>
+            <div class="bulk-actions" id="bulk-actions" hidden>
+              <p id="bulk-selection-summary" aria-live="polite">已选择 0 条日志。</p>
+              <div class="bulk-actions-controls">
+                <button class="secondary" id="bulk-replay-btn" type="button" disabled>批量重发失败项</button>
+                <button class="danger" id="bulk-delete-btn" type="button" disabled>删除已结束日志</button>
+              </div>
             </div>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
+                    <th class="select-cell">选择</th>
                     <th>时间</th>
                     <th>状态</th>
                     <th>Source</th>
@@ -386,24 +610,35 @@ export const renderDeliveryLogPage = (input: {
                 </thead>
                 <tbody id="delivery-body">
                   <tr>
-                    <td colspan="7" class="tiny">暂无数据</td>
+                    <td colspan="8" class="tiny">暂无数据</td>
                   </tr>
                 </tbody>
               </table>
             </div>
-          </section>
+            <nav class="pagination" aria-label="日志分页">
+              <p class="pagination-summary" id="pagination-summary" aria-live="polite">正在准备分页...</p>
+              <div class="pagination-actions">
+                <button class="secondary" id="prev-page-btn" type="button" disabled>上一页</button>
+                <button class="secondary" id="next-page-btn" type="button" disabled>下一页</button>
+              </div>
+            </nav>
+        </section>
 
-          <aside class="card detail-card">
-            <div class="section-head">
+        <dialog class="detail-dialog" id="detail-dialog" aria-label="投递详情">
+          <div class="detail-dialog-head">
+            <div>
               <h2>详情面板</h2>
               <p>点击日志行里的“查看”按钮，可加载单条投递详情。</p>
             </div>
+            <button class="secondary" id="detail-close-btn" type="button">关闭</button>
+          </div>
+          <div class="detail-dialog-content">
             <div class="detail-box">
-              <div class="detail-state" id="detail-state">还没有选中的日志。</div>
+              <div class="detail-state" id="detail-state" aria-live="polite">还没有选中的日志。</div>
               <pre id="detail-json">{}</pre>
             </div>
-          </aside>
-        </section>
+          </div>
+        </dialog>
       </div>
     </main>
 
@@ -412,6 +647,7 @@ export const renderDeliveryLogPage = (input: {
       const initialStatus = ${JSON.stringify(input.initialStatus ?? "")};
       const initialSource = ${JSON.stringify(input.initialSource ?? "")};
       const initialLimit = ${JSON.stringify(String(input.initialLimit))};
+      const initialPage = ${JSON.stringify(String(input.initialPage))};
       const initialRefreshSeconds = ${JSON.stringify(String(input.initialRefreshSeconds))};
 
       const statusInput = document.getElementById("status-input");
@@ -425,10 +661,26 @@ export const renderDeliveryLogPage = (input: {
       const statusPill = document.getElementById("status-pill");
       const tableSubtitle = document.getElementById("table-subtitle");
       const deliveryBody = document.getElementById("delivery-body");
+      const selectAllPageBtn = document.getElementById("select-all-page-btn");
+      const bulkActions = document.getElementById("bulk-actions");
+      const bulkSelectionSummary = document.getElementById("bulk-selection-summary");
+      const bulkReplayBtn = document.getElementById("bulk-replay-btn");
+      const bulkDeleteBtn = document.getElementById("bulk-delete-btn");
+      const paginationSummary = document.getElementById("pagination-summary");
+      const prevPageBtn = document.getElementById("prev-page-btn");
+      const nextPageBtn = document.getElementById("next-page-btn");
+      const detailDialog = document.getElementById("detail-dialog");
+      const detailCloseBtn = document.getElementById("detail-close-btn");
       const detailState = document.getElementById("detail-state");
       const detailJson = document.getElementById("detail-json");
 
       let autoRefreshTimer = null;
+      let detailTrigger = null;
+      let currentPage = Number.parseInt(initialPage, 10) || 1;
+      let totalPages = 1;
+      let isLoading = false;
+      let isBulkActionLoading = false;
+      const selectedDeliveryIds = new Set();
 
       const escapeHtml = (value) =>
         value
@@ -449,6 +701,7 @@ export const renderDeliveryLogPage = (input: {
         const url = new URL("/admin/deliveries", window.location.origin);
         url.searchParams.set("token", adminToken);
         url.searchParams.set("limit", limitInput.value || "20");
+        url.searchParams.set("page", String(currentPage));
         if (statusInput.value) url.searchParams.set("status", statusInput.value);
         if (sourceInput.value.trim()) url.searchParams.set("source", sourceInput.value.trim());
         return url;
@@ -458,6 +711,7 @@ export const renderDeliveryLogPage = (input: {
         const url = new URL(window.location.href);
         url.searchParams.set("token", adminToken);
         url.searchParams.set("limit", limitInput.value || "20");
+        url.searchParams.set("page", String(currentPage));
         url.searchParams.set("refresh", refreshSecondsInput.value || "0");
         if (statusInput.value) {
           url.searchParams.set("status", statusInput.value);
@@ -472,6 +726,62 @@ export const renderDeliveryLogPage = (input: {
         window.history.replaceState({}, "", url);
       };
 
+      const updateApiUrlPreview = (url = buildApiUrl()) => {
+        const displayUrl = new URL(url);
+        displayUrl.searchParams.set("token", "••••••");
+        apiUrlInput.value = displayUrl.toString();
+      };
+
+      const updatePaginationControls = () => {
+        prevPageBtn.disabled = isLoading || currentPage <= 1;
+        nextPageBtn.disabled = isLoading || currentPage >= totalPages;
+      };
+
+      const getSelectionInputs = () => Array.from(deliveryBody.querySelectorAll("input[data-bulk-delivery-id]"));
+
+      const updateBulkActions = () => {
+        const inputs = getSelectionInputs();
+        const selectedInputs = inputs.filter((input) => input.checked);
+        const failedCount = selectedInputs.filter((input) => input.getAttribute("data-bulk-delivery-status") === "failed").length;
+        const completedCount = selectedInputs.filter((input) => {
+          const status = input.getAttribute("data-bulk-delivery-status");
+          return status === "delivered" || status === "failed";
+        }).length;
+
+        bulkActions.hidden = selectedInputs.length === 0;
+        bulkSelectionSummary.textContent = "已选择 " + selectedInputs.length + " 条：可重发 " + failedCount + " 条失败项，可删除 " + completedCount + " 条已结束日志。";
+        bulkReplayBtn.disabled = isLoading || isBulkActionLoading || failedCount === 0;
+        bulkDeleteBtn.disabled = isLoading || isBulkActionLoading || completedCount === 0;
+        const allSelected = inputs.length > 0 && selectedInputs.length === inputs.length;
+        selectAllPageBtn.disabled = isLoading || isBulkActionLoading || inputs.length === 0;
+        selectAllPageBtn.textContent = allSelected ? "取消全选" : "全选本页";
+        inputs.forEach((input) => {
+          input.disabled = isLoading || isBulkActionLoading;
+        });
+      };
+
+      const clearSelection = () => {
+        selectedDeliveryIds.clear();
+        getSelectionInputs().forEach((input) => {
+          input.checked = false;
+        });
+        updateBulkActions();
+      };
+
+      const getSelectedDeliveryIds = () => Array.from(selectedDeliveryIds);
+
+      const renderPagination = (items, total, page, pageCount) => {
+        currentPage = page;
+        totalPages = Math.max(pageCount, 1);
+        const pageSize = Number.parseInt(limitInput.value || "20", 10);
+        const first = items.length > 0 ? (currentPage - 1) * pageSize + 1 : 0;
+        const last = items.length > 0 ? first + items.length - 1 : 0;
+        paginationSummary.textContent = total === 0
+          ? "共 0 条记录"
+          : "显示 " + first + "-" + last + "，共 " + total + " 条 · 第 " + currentPage + "/" + totalPages + " 页";
+        updatePaginationControls();
+      };
+
       const setPageState = (text, tone) => {
         statusPill.textContent = text;
         statusPill.style.background = tone === "error" ? "#fee2e2" : tone === "success" ? "#dcfce7" : "#dff5f2";
@@ -479,8 +789,16 @@ export const renderDeliveryLogPage = (input: {
       };
 
       const renderRows = (items) => {
+        const visibleDeliveryIds = new Set(items.map((item) => item.deliveryId));
+        selectedDeliveryIds.forEach((deliveryId) => {
+          if (!visibleDeliveryIds.has(deliveryId)) {
+            selectedDeliveryIds.delete(deliveryId);
+          }
+        });
+
         if (!items.length) {
-          deliveryBody.innerHTML = '<tr><td colspan="7" class="tiny">当前筛选条件下没有日志。</td></tr>';
+          deliveryBody.innerHTML = '<tr><td colspan="8" class="tiny">当前筛选条件下没有日志。</td></tr>';
+          updateBulkActions();
           return;
         }
 
@@ -489,68 +807,250 @@ export const renderDeliveryLogPage = (input: {
             const preview = item.text.length > 80 ? item.text.slice(0, 80) + "..." : item.text;
             const responseCode = item.responseCode ?? "-";
             return '<tr>'
-              + '<td><div>' + escapeHtml(item.createdAt) + '</div><div class="tiny"><code class="mono">' + escapeHtml(item.deliveryId) + '</code></div></td>'
-              + '<td><span class="badge ' + badgeClass(item.status) + '">' + escapeHtml(item.status) + '</span></td>'
-              + '<td>' + escapeHtml(item.source) + '</td>'
-              + '<td><div class="text-preview">' + escapeHtml(preview) + '</div></td>'
-              + '<td>' + escapeHtml(String(item.attempts)) + '</td>'
-              + '<td>' + escapeHtml(String(responseCode)) + '</td>'
-              + '<td><button data-delivery-id="' + escapeHtml(item.deliveryId) + '">查看</button></td>'
+              + '<td class="select-cell" data-label="选择"><input type="checkbox" data-bulk-delivery-id="' + escapeHtml(item.deliveryId) + '" data-bulk-delivery-status="' + escapeHtml(item.status) + '" aria-label="选择日志 ' + escapeHtml(item.deliveryId) + '"' + (selectedDeliveryIds.has(item.deliveryId) ? ' checked' : '') + ' /></td>'
+              + '<td data-label="时间"><div>' + escapeHtml(item.createdAt) + '</div><div class="tiny"><code class="mono">' + escapeHtml(item.deliveryId) + '</code></div></td>'
+              + '<td data-label="状态"><span class="badge ' + badgeClass(item.status) + '">' + escapeHtml(item.status) + '</span></td>'
+              + '<td data-label="Source">' + escapeHtml(item.source) + '</td>'
+              + '<td data-label="消息预览"><div class="text-preview">' + escapeHtml(preview) + '</div></td>'
+              + '<td data-label="尝试">' + escapeHtml(String(item.attempts)) + '</td>'
+              + '<td data-label="响应">' + escapeHtml(String(responseCode)) + '</td>'
+              + '<td data-label="详情"><div class="row-actions">'
+              + '<button class="secondary" data-delivery-id="' + escapeHtml(item.deliveryId) + '">查看</button>'
+              + (item.status === "failed" ? '<button data-replay-delivery-id="' + escapeHtml(item.deliveryId) + '">重发</button>' : '')
+              + '</div></td>'
               + '</tr>';
           })
           .join("");
 
         deliveryBody.querySelectorAll("button[data-delivery-id]").forEach((button) => {
           button.addEventListener("click", () => {
-            loadDetail(button.getAttribute("data-delivery-id"));
+            deliveryBody.querySelectorAll("tr.selected").forEach((row) => row.classList.remove("selected"));
+            button.closest("tr")?.classList.add("selected");
+            loadDetail(button.getAttribute("data-delivery-id"), button);
           });
         });
+
+        deliveryBody.querySelectorAll("button[data-replay-delivery-id]").forEach((button) => {
+          button.addEventListener("click", () => {
+            replayDelivery(button.getAttribute("data-replay-delivery-id"), button);
+          });
+        });
+
+        getSelectionInputs().forEach((input) => {
+          input.addEventListener("change", () => {
+            const deliveryId = input.getAttribute("data-bulk-delivery-id");
+            if (!deliveryId) return;
+            if (input.checked) {
+              selectedDeliveryIds.add(deliveryId);
+            } else {
+              selectedDeliveryIds.delete(deliveryId);
+            }
+            updateBulkActions();
+          });
+        });
+
+        updateBulkActions();
       };
 
-      const loadDetail = async (deliveryId) => {
+      const replayDelivery = async (deliveryId, button) => {
         if (!deliveryId) return;
-        detailState.textContent = "正在加载 " + deliveryId + " ...";
-        const response = await fetch("/admin/deliveries/" + encodeURIComponent(deliveryId) + "?token=" + encodeURIComponent(adminToken));
-        const payload = await response.json();
-        if (!response.ok) {
-          detailState.textContent = "详情加载失败：" + payload.message;
-          detailJson.textContent = "{}";
+        button.disabled = true;
+        const originalText = button.textContent;
+        button.textContent = "重发中...";
+        setPageState("正在将失败消息重新入队...", "info");
+
+        try {
+          const response = await fetch(
+            "/admin/deliveries/" + encodeURIComponent(deliveryId) + "/replay?token=" + encodeURIComponent(adminToken),
+            { method: "POST" }
+          );
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.message || "未知错误");
+          clearSelection();
+          await loadDeliveries();
+          setPageState("消息已重新入队：" + deliveryId, "success");
+        } catch (error) {
+          setPageState("重发失败：" + (error instanceof Error ? error.message : "网络请求失败"), "error");
+        } finally {
+          button.disabled = false;
+          button.textContent = originalText;
+        }
+      };
+
+      const replaySelectedDeliveries = async () => {
+        const deliveryIds = getSelectedDeliveryIds();
+        if (!deliveryIds.length) return;
+
+        isBulkActionLoading = true;
+        applyBtn.disabled = true;
+        refreshBtn.disabled = true;
+        updateBulkActions();
+        const originalText = bulkReplayBtn.textContent;
+        bulkReplayBtn.textContent = "重发中...";
+        setPageState("正在重发选中的失败消息...", "info");
+
+        try {
+          const response = await fetch("/admin/deliveries/batch/replay?token=" + encodeURIComponent(adminToken), {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ deliveryIds })
+          });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.message || "未知错误");
+          const items = Array.isArray(payload.data?.items) ? payload.data.items : [];
+          const replayed = items.filter((item) => item.replayed).length;
+          clearSelection();
+          await loadDeliveries();
+          setPageState("已重发 " + replayed + " 条；" + (items.length - replayed) + " 条未重发（仅 failed 可重发）。", replayed > 0 ? "success" : "info");
+        } catch (error) {
+          setPageState("批量重发失败：" + (error instanceof Error ? error.message : "网络请求失败"), "error");
+        } finally {
+          isBulkActionLoading = false;
+          bulkReplayBtn.textContent = originalText;
+          applyBtn.disabled = false;
+          refreshBtn.disabled = false;
+          updateBulkActions();
+        }
+      };
+
+      const deleteSelectedDeliveries = async () => {
+        const deliveryIds = getSelectedDeliveryIds();
+        if (!deliveryIds.length) return;
+        if (!window.confirm("确定删除已选的 " + deliveryIds.length + " 条日志吗？只有 delivered 和 failed 日志会被删除；排队或重试中的投递不会受影响。删除会同时移除对应的幂等记录。")) {
           return;
         }
 
-        detailState.textContent = "当前查看：" + deliveryId;
-        detailJson.textContent = JSON.stringify(payload.data, null, 2);
+        isBulkActionLoading = true;
+        applyBtn.disabled = true;
+        refreshBtn.disabled = true;
+        updateBulkActions();
+        const originalText = bulkDeleteBtn.textContent;
+        bulkDeleteBtn.textContent = "删除中...";
+        setPageState("正在删除已结束日志...", "info");
+
+        try {
+          const response = await fetch("/admin/deliveries/batch/delete?token=" + encodeURIComponent(adminToken), {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ deliveryIds })
+          });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.message || "未知错误");
+          const deleted = Number.isInteger(payload.data?.deleted) ? payload.data.deleted : 0;
+          const skipped = Number.isInteger(payload.data?.skipped) ? payload.data.skipped : deliveryIds.length - deleted;
+          clearSelection();
+          await loadDeliveries();
+          setPageState("已删除 " + deleted + " 条；" + skipped + " 条未删除（仅已结束日志可删除）。", deleted > 0 ? "success" : "info");
+        } catch (error) {
+          setPageState("批量删除失败：" + (error instanceof Error ? error.message : "网络请求失败"), "error");
+        } finally {
+          isBulkActionLoading = false;
+          bulkDeleteBtn.textContent = originalText;
+          applyBtn.disabled = false;
+          refreshBtn.disabled = false;
+          updateBulkActions();
+        }
+      };
+
+      const loadDetail = async (deliveryId, button) => {
+        if (!deliveryId) return;
+        detailTrigger = button;
+        if (!detailDialog.open) detailDialog.showModal();
+        detailState.textContent = "正在加载 " + deliveryId + " ...";
+        button.disabled = true;
+        const originalText = button.textContent;
+        button.textContent = "加载中...";
+        try {
+          const response = await fetch("/admin/deliveries/" + encodeURIComponent(deliveryId) + "?token=" + encodeURIComponent(adminToken));
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.message || "未知错误");
+          detailState.textContent = "当前查看：" + deliveryId;
+          detailJson.textContent = JSON.stringify(payload.data, null, 2);
+        } catch (error) {
+          detailState.textContent = "详情加载失败：" + (error instanceof Error ? error.message : "网络请求失败");
+          detailJson.textContent = "{}";
+        } finally {
+          button.disabled = false;
+          button.textContent = originalText;
+          if (!detailDialog.open) button.focus();
+        }
+      };
+
+      const closeDetail = () => {
+        if (detailDialog.open) detailDialog.close();
       };
 
       const loadDeliveries = async () => {
         const url = buildApiUrl();
-        apiUrlInput.value = url.toString();
+        updateApiUrlPreview(url);
         syncUrl();
         setPageState("正在刷新日志...", "info");
+        isLoading = true;
+        updatePaginationControls();
+        updateBulkActions();
+        applyBtn.disabled = true;
+        refreshBtn.disabled = true;
+        const originalApplyText = applyBtn.textContent;
+        const originalRefreshText = refreshBtn.textContent;
+        applyBtn.textContent = "刷新中...";
+        refreshBtn.textContent = "刷新中...";
 
-        const response = await fetch(url);
-        const payload = await response.json();
-        if (!response.ok) {
-          setPageState("日志加载失败：" + payload.message, "error");
-          tableSubtitle.textContent = "无法读取日志，请检查 token 或筛选参数。";
-          deliveryBody.innerHTML = '<tr><td colspan="7" class="tiny">日志加载失败。</td></tr>';
-          return;
+        try {
+          const response = await fetch(url);
+          const payload = await response.json();
+          if (!response.ok) {
+            setPageState("日志加载失败：" + payload.message, "error");
+            tableSubtitle.textContent = "无法读取日志，请检查 token 或筛选参数。";
+            deliveryBody.innerHTML = '<tr><td colspan="8" class="tiny">日志加载失败。</td></tr>';
+            clearSelection();
+            return;
+          }
+
+          const items = Array.isArray(payload.data.items) ? payload.data.items : [];
+          const page = Number.isInteger(payload.data.page) && payload.data.page > 0 ? payload.data.page : currentPage;
+          const total = Number.isFinite(payload.data.total) && payload.data.total >= 0 ? payload.data.total : items.length;
+          const pageCount = Number.isInteger(payload.data.totalPages) && payload.data.totalPages > 0
+            ? payload.data.totalPages
+            : Math.max(1, Math.ceil(total / Number.parseInt(limitInput.value || "20", 10)));
+          renderRows(items);
+          renderPagination(items, total, page, pageCount);
+          tableSubtitle.textContent = total === 0 ? "当前筛选条件下没有日志。" : "按创建时间倒序显示。";
+          updateApiUrlPreview();
+          syncUrl();
+          setPageState("日志已更新", "success");
+        } catch (error) {
+          setPageState("日志加载失败：" + (error instanceof Error ? error.message : "网络请求失败"), "error");
+          tableSubtitle.textContent = "网络异常，请稍后重试。";
+          deliveryBody.innerHTML = '<tr><td colspan="8" class="tiny">日志加载失败，请重试。</td></tr>';
+          clearSelection();
+        } finally {
+          isLoading = false;
+          updatePaginationControls();
+          applyBtn.disabled = isBulkActionLoading;
+          refreshBtn.disabled = isBulkActionLoading;
+          applyBtn.textContent = originalApplyText;
+          refreshBtn.textContent = originalRefreshText;
+          updateBulkActions();
         }
-
-        const items = payload.data.items || [];
-        renderRows(items);
-        tableSubtitle.textContent = "最近返回 " + items.length + " 条记录。";
-        setPageState("日志已更新", "success");
       };
 
       const updateAutoRefresh = () => {
         if (autoRefreshTimer) {
-          window.clearInterval(autoRefreshTimer);
+          window.clearTimeout(autoRefreshTimer);
           autoRefreshTimer = null;
         }
         const seconds = Number.parseInt(refreshSecondsInput.value || "0", 10);
         if (seconds > 0) {
-          autoRefreshTimer = window.setInterval(loadDeliveries, seconds * 1000);
+          autoRefreshTimer = window.setTimeout(async () => {
+            if (!isBulkActionLoading) {
+              await loadDeliveries();
+            }
+            updateAutoRefresh();
+          }, seconds * 1000);
         }
       };
 
@@ -560,6 +1060,8 @@ export const renderDeliveryLogPage = (input: {
       refreshSecondsInput.value = initialRefreshSeconds;
 
       applyBtn.addEventListener("click", () => {
+        currentPage = 1;
+        clearSelection();
         updateAutoRefresh();
         loadDeliveries();
       });
@@ -568,12 +1070,52 @@ export const renderDeliveryLogPage = (input: {
         loadDeliveries();
       });
 
+      prevPageBtn.addEventListener("click", () => {
+        if (currentPage <= 1 || isLoading) return;
+        currentPage -= 1;
+        clearSelection();
+        loadDeliveries();
+      });
+
+      nextPageBtn.addEventListener("click", () => {
+        if (currentPage >= totalPages || isLoading) return;
+        currentPage += 1;
+        clearSelection();
+        loadDeliveries();
+      });
+
+      selectAllPageBtn.addEventListener("click", () => {
+        const selectAll = getSelectionInputs().some((input) => !input.checked);
+        getSelectionInputs().forEach((input) => {
+          input.checked = selectAll;
+          const deliveryId = input.getAttribute("data-bulk-delivery-id");
+          if (!deliveryId) return;
+          if (input.checked) {
+            selectedDeliveryIds.add(deliveryId);
+          } else {
+            selectedDeliveryIds.delete(deliveryId);
+          }
+        });
+        updateBulkActions();
+      });
+
+      bulkReplayBtn.addEventListener("click", replaySelectedDeliveries);
+      bulkDeleteBtn.addEventListener("click", deleteSelectedDeliveries);
+
+      detailCloseBtn.addEventListener("click", closeDetail);
+      detailDialog.addEventListener("click", (event) => {
+        if (event.target === detailDialog) closeDetail();
+      });
+      detailDialog.addEventListener("close", () => {
+        if (detailTrigger?.isConnected && !detailTrigger.disabled) detailTrigger.focus();
+      });
+
       copyUrlBtn.addEventListener("click", async () => {
         try {
-          await navigator.clipboard.writeText(apiUrlInput.value);
-          setPageState("API 地址已复制到剪贴板", "success");
+          await navigator.clipboard.writeText(buildApiUrl().toString());
+          setPageState("含管理凭证的 API 地址已复制，请妥善保管", "success");
         } catch {
-          setPageState("复制失败，请手动复制输入框内容。", "error");
+          setPageState("复制失败，请允许剪贴板权限后重试；页面不会显示完整 token。", "error");
         }
       });
 

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import * as QRCode from "qrcode";
-import type { AppContext, DeliveryStatus } from "./contracts";
+import type { AppContext, DeliveryListQuery, DeliveryStatus } from "./contracts";
 import { renderDashboardPage } from "./lib/dashboard-page";
 import { AppError, isAppError, isIlinkApiError, toErrorDetails, toErrorMessage } from "./lib/errors";
 import { renderDeliveryLogPage } from "./lib/delivery-log-page";
@@ -17,6 +17,8 @@ const extractBearerToken = (authorizationHeader: string | null): string | null =
 };
 
 const ALLOWED_DELIVERY_STATUSES = new Set<DeliveryStatus>(["queued", "retrying", "delivered", "failed"]);
+const MAX_BATCH_DELIVERY_IDS = 100;
+const DELIVERY_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const extractAdminToken = (request: Request): string | null => {
   const bearerToken = extractBearerToken(request.headers.get("Authorization"));
@@ -29,9 +31,10 @@ const extractAdminToken = (request: Request): string | null => {
   return queryToken || null;
 };
 
-const parseDeliveryListQuery = (request: Request): { limit: number; status?: DeliveryStatus; source?: string } => {
+const parseDeliveryListQuery = (request: Request): DeliveryListQuery => {
   const url = new URL(request.url);
   const rawLimit = url.searchParams.get("limit");
+  const rawPage = url.searchParams.get("page");
   const rawStatus = url.searchParams.get("status");
   const rawSource = url.searchParams.get("source")?.trim();
 
@@ -40,6 +43,14 @@ const parseDeliveryListQuery = (request: Request): { limit: number; status?: Del
     limit = Number.parseInt(rawLimit, 10);
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
       throw new AppError(400, "invalid_limit", "limit 必须是 1-100 之间的整数。");
+    }
+  }
+
+  let page = 1;
+  if (rawPage) {
+    page = Number.parseInt(rawPage, 10);
+    if (!/^[1-9]\d*$/.test(rawPage) || !Number.isSafeInteger(page)) {
+      throw new AppError(400, "invalid_page", "page 必须是大于等于 1 的整数。");
     }
   }
 
@@ -53,6 +64,7 @@ const parseDeliveryListQuery = (request: Request): { limit: number; status?: Del
 
   return {
     limit,
+    page,
     status: rawStatus ? (rawStatus as DeliveryStatus) : undefined,
     source: rawSource || undefined
   };
@@ -113,6 +125,30 @@ const parseQueuedCompensationQuery = (request: Request): { limit: number; olderT
     ...replayQuery,
     olderThanMinutes
   };
+};
+
+const parseBatchDeliveryIds = async (request: Request): Promise<string[]> => {
+  const input = await parseJsonBody(request);
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    throw new AppError(400, "invalid_delivery_ids", "deliveryIds 必须是非空 UUID 数组。");
+  }
+
+  const deliveryIdsInput = (input as Record<string, unknown>).deliveryIds;
+  if (
+    !Array.isArray(deliveryIdsInput) ||
+    deliveryIdsInput.length === 0 ||
+    deliveryIdsInput.length > MAX_BATCH_DELIVERY_IDS ||
+    deliveryIdsInput.some((deliveryId) => typeof deliveryId !== "string")
+  ) {
+    throw new AppError(400, "invalid_delivery_ids", "deliveryIds 必须是 1-100 条 UUID 组成的数组。");
+  }
+
+  const deliveryIds = Array.from(new Set(deliveryIdsInput.map((deliveryId) => (deliveryId as string).trim())));
+  if (deliveryIds.some((deliveryId) => !DELIVERY_ID_PATTERN.test(deliveryId))) {
+    throw new AppError(400, "invalid_delivery_ids", "deliveryIds 必须是 1-100 条 UUID 组成的数组。");
+  }
+
+  return deliveryIds;
 };
 
 export const createApp = (context: AppContext): Hono => {
@@ -342,6 +378,7 @@ export const createApp = (context: AppContext): Hono => {
         initialStatus: filters.status,
         initialSource: filters.source,
         initialLimit: filters.limit,
+        initialPage: filters.page,
         initialRefreshSeconds: parseRefreshSeconds(c.req.raw, 5)
       }),
       {
@@ -367,6 +404,22 @@ export const createApp = (context: AppContext): Hono => {
       code: 202,
       data
     }, 202);
+  });
+
+  app.post("/admin/deliveries/batch/replay", async (c) => {
+    const data = await context.services.delivery.replayDeliveries(await parseBatchDeliveryIds(c.req.raw));
+    return c.json({
+      code: 202,
+      data
+    }, 202);
+  });
+
+  app.post("/admin/deliveries/batch/delete", async (c) => {
+    const data = await context.services.delivery.deleteCompletedDeliveries(await parseBatchDeliveryIds(c.req.raw));
+    return c.json({
+      code: 200,
+      data
+    });
   });
 
   app.post("/admin/deliveries/:deliveryId/replay", async (c) => {

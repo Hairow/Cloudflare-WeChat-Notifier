@@ -25,6 +25,8 @@ const createContext = (): AppContext => ({
       listDeliveries: vi.fn(),
       getDelivery: vi.fn(),
       replayDelivery: vi.fn(),
+      replayDeliveries: vi.fn(),
+      deleteCompletedDeliveries: vi.fn(),
       replayFailedRetMinusTwo: vi.fn(),
       compensateStaleQueued: vi.fn().mockResolvedValue({
         items: [],

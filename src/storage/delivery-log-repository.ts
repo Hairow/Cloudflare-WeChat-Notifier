@@ -1,4 +1,4 @@
-import type { DeliveryLog, DeliveryStatus } from "../contracts";
+import type { DeliveryListQuery, DeliveryLog, DeliveryStatus } from "../contracts";
 import { createDeliveryId } from "../lib/id";
 import { nowIso } from "../lib/time";
 
@@ -28,6 +28,26 @@ const parseMeta = (raw: string | null): Record<string, unknown> | null => {
 
 const isUniqueConstraintError = (error: unknown): boolean =>
   error instanceof Error && error.message.includes("UNIQUE constraint failed: delivery_log.idempotency_key");
+
+const buildDeliveryListFilter = (input: Pick<DeliveryListQuery, "status" | "source">) => {
+  const filters: string[] = [];
+  const bindings: Array<string | number> = [];
+
+  if (input.status) {
+    filters.push("status = ?");
+    bindings.push(input.status);
+  }
+
+  if (input.source) {
+    filters.push("source = ?");
+    bindings.push(input.source);
+  }
+
+  return {
+    whereClause: filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "",
+    bindings
+  };
+};
 
 export class DeliveryLogRepository {
   public constructor(private readonly db: D1Database) {}
@@ -131,25 +151,8 @@ export class DeliveryLogRepository {
     return row ? this.toEntity(row) : null;
   }
 
-  public async list(input: {
-    limit: number;
-    status?: DeliveryStatus;
-    source?: string;
-  }): Promise<DeliveryLog[]> {
-    const filters: string[] = [];
-    const bindings: Array<string | number> = [];
-
-    if (input.status) {
-      filters.push("status = ?");
-      bindings.push(input.status);
-    }
-
-    if (input.source) {
-      filters.push("source = ?");
-      bindings.push(input.source);
-    }
-
-    const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
+  public async list(input: DeliveryListQuery): Promise<DeliveryLog[]> {
+    const { whereClause, bindings } = buildDeliveryListFilter(input);
     const statement = this.db
       .prepare(
         `
@@ -170,13 +173,49 @@ export class DeliveryLogRepository {
           FROM delivery_log
           ${whereClause}
           ORDER BY created_at DESC, delivery_id DESC
-          LIMIT ?
+          LIMIT ? OFFSET ?
         `
       )
-      .bind(...bindings, input.limit);
+      .bind(...bindings, input.limit, (input.page - 1) * input.limit);
 
     const result = await statement.all<DeliveryLogRow>();
     return result.results.map((row) => this.toEntity(row));
+  }
+
+  public async count(input: Pick<DeliveryListQuery, "status" | "source">): Promise<number> {
+    const { whereClause, bindings } = buildDeliveryListFilter(input);
+    const row = await this.db
+      .prepare(
+        `
+          SELECT COUNT(*) AS total
+          FROM delivery_log
+          ${whereClause}
+        `
+      )
+      .bind(...bindings)
+      .first<{ total: number }>();
+
+    return Number(row?.total ?? 0);
+  }
+
+  public async deleteCompletedByIds(deliveryIds: string[]): Promise<number> {
+    if (deliveryIds.length === 0) {
+      return 0;
+    }
+
+    const placeholders = deliveryIds.map(() => "?").join(", ");
+    const result = await this.db
+      .prepare(
+        `
+          DELETE FROM delivery_log
+          WHERE delivery_id IN (${placeholders})
+            AND status IN ('delivered', 'failed')
+        `
+      )
+      .bind(...deliveryIds)
+      .run();
+
+    return Number(result.meta.changes ?? 0);
   }
 
   public async listFailedRetMinusTwo(input: {

@@ -143,12 +143,23 @@ export const renderQrcodeLoginPage = (input: {
         white-space: nowrap;
         max-width: 100%;
         touch-action: manipulation;
+        transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease;
       }
       button.secondary,
       a.secondary {
         background: transparent;
         color: var(--text);
         border: 1px solid var(--line);
+      }
+      button:not(:disabled):hover,
+      a.button:hover {
+        box-shadow: 0 10px 22px rgba(22, 32, 47, 0.14);
+        transform: translateY(-1px);
+      }
+      button.secondary:not(:disabled):hover,
+      a.secondary:hover {
+        background: #ffffff;
+        border-color: #aebdcd;
       }
       .hint {
         margin-top: 20px;
@@ -183,6 +194,17 @@ export const renderQrcodeLoginPage = (input: {
           flex: 1 1 100%;
         }
       }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          transition: none !important;
+        }
+        button:not(:disabled):hover,
+        a.button:hover {
+          transform: none;
+        }
+      }
     </style>
   </head>
   <body>
@@ -199,11 +221,12 @@ export const renderQrcodeLoginPage = (input: {
               <div class="meta-row"><strong>过期时间:</strong> <code>${escapedExpiresAt}</code></div>
             </div>
 
-            <div class="status" id="status-box">当前状态：等待扫码</div>
+            <div class="status" id="status-box" aria-live="polite">当前状态：等待扫码</div>
 
             <div class="actions">
               <button id="activate-btn" disabled>确认后激活</button>
               <a class="button secondary" href="/admin/bot/login/qrcode/page?token=${escapedToken}">刷新二维码</a>
+              <a class="button secondary" href="/admin/dashboard?token=${escapedToken}">返回管理主页</a>
             </div>
 
             <p class="hint" id="hint-box">如果登录确认后仍无法激活，请先给“微信ClawBot”发一条消息，再点击“确认后激活”。</p>
@@ -221,6 +244,10 @@ export const renderQrcodeLoginPage = (input: {
       let polling = true;
       let loggedIn = false;
 
+      const schedulePoll = () => {
+        if (polling) window.setTimeout(fetchStatus, 2000);
+      };
+
       const setStatus = (text, tone) => {
         statusBox.textContent = text;
         statusBox.style.background = tone === "error" ? "#fee2e2" : tone === "success" ? "#dcfce7" : "#dff5f2";
@@ -229,64 +256,62 @@ export const renderQrcodeLoginPage = (input: {
 
       const fetchStatus = async () => {
         if (!polling) return;
-        const response = await fetch("/admin/bot/login/status/" + encodeURIComponent(sessionId) + "?token=" + encodeURIComponent(adminToken));
-        const payload = await response.json();
-        if (!response.ok) {
-          setStatus("状态查询失败：" + payload.message, "error");
-          polling = false;
-          return;
-        }
+        try {
+          const response = await fetch("/admin/bot/login/status/" + encodeURIComponent(sessionId) + "?token=" + encodeURIComponent(adminToken));
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.message || "未知错误");
 
-        const status = payload.data.status;
-        if (status === "wait") {
-          setStatus("当前状态：等待扫码", "info");
-          return;
-        }
-        if (status === "scanned") {
-          setStatus("当前状态：已扫码，请在手机上确认", "info");
-          return;
-        }
-        if (status === "expired") {
-          setStatus("当前状态：二维码已过期，请刷新页面重新获取。", "error");
-          polling = false;
-          return;
-        }
-        if (status === "confirmed") {
-          loggedIn = true;
-          activateBtn.disabled = false;
-          setStatus("当前状态：登录已确认，可以继续激活。", "success");
-          hintBox.textContent = "下一步：先给“微信ClawBot”发一条消息，然后点击“确认后激活”。";
-          polling = false;
+          const status = payload.data.status;
+          if (status === "wait") setStatus("当前状态：等待扫码", "info");
+          if (status === "scanned") setStatus("当前状态：已扫码，请在手机上确认", "info");
+          if (status === "expired") {
+            setStatus("当前状态：二维码已过期，请刷新页面重新获取。", "error");
+            polling = false;
+          }
+          if (status === "confirmed") {
+            loggedIn = true;
+            activateBtn.disabled = false;
+            setStatus("当前状态：登录已确认，可以继续激活。", "success");
+            hintBox.textContent = "下一步：先给“微信ClawBot”发一条消息，然后点击“确认后激活”。";
+            polling = false;
+          }
+        } catch (error) {
+          setStatus("状态查询失败：" + (error instanceof Error ? error.message : "网络请求失败"), "error");
+        } finally {
+          schedulePoll();
         }
       };
 
       activateBtn.addEventListener("click", async () => {
         activateBtn.disabled = true;
+        activateBtn.textContent = "激活中...";
         setStatus("正在尝试激活...", "info");
-        const response = await fetch("/admin/bot/activate?token=" + encodeURIComponent(adminToken), {
-          method: "POST"
-        });
-        const payload = await response.json();
-        if (!response.ok) {
-          setStatus("激活失败：" + payload.message, "error");
-          activateBtn.disabled = !loggedIn;
-          return;
+        try {
+          const response = await fetch("/admin/bot/activate?token=" + encodeURIComponent(adminToken), {
+            method: "POST"
+          });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.message || "未知错误");
+          const result = payload.data;
+          if (result.status === "ready") {
+            setStatus("激活成功：bot 已就绪，可以开始发信。", "success");
+            hintBox.textContent = "现在可以调用 /webhook/:source 或 /api/send 进行发送测试。";
+            activateBtn.textContent = "已激活";
+            return;
+          }
+          setStatus("激活未完成：" + result.message, "error");
+          hintBox.textContent = result.message;
+        } catch (error) {
+          setStatus("激活失败：" + (error instanceof Error ? error.message : "网络请求失败"), "error");
+        } finally {
+          if (activateBtn.textContent !== "已激活") {
+            activateBtn.disabled = !loggedIn;
+            activateBtn.textContent = "确认后激活";
+          }
         }
-
-        const result = payload.data;
-        if (result.status === "ready") {
-          setStatus("激活成功：bot 已就绪，可以开始发信。", "success");
-          hintBox.textContent = "现在可以调用 /webhook/:source 或 /api/send 进行发送测试。";
-          return;
-        }
-
-        setStatus("激活未完成：" + result.message, "error");
-        hintBox.textContent = result.message;
-        activateBtn.disabled = false;
       });
 
       fetchStatus();
-      setInterval(fetchStatus, 2000);
     </script>
   </body>
 </html>`;

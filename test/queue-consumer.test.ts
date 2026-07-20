@@ -21,6 +21,8 @@ const createServices = (outcome: "ack" | "retry", options?: {
       listDeliveries: vi.fn(),
       getDelivery: vi.fn(),
       replayDelivery: vi.fn(),
+      replayDeliveries: vi.fn(),
+      deleteCompletedDeliveries: vi.fn(),
       replayFailedRetMinusTwo: vi.fn(),
       compensateStaleQueued: vi.fn(),
       enqueueKeepaliveIfDue: vi.fn(),

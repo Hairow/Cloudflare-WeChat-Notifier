@@ -87,6 +87,7 @@ export interface EnqueueDeliveryResult {
 
 export interface DeliveryListQuery {
   limit: number;
+  page: number;
   status?: DeliveryStatus;
   source?: string;
 }
@@ -94,6 +95,9 @@ export interface DeliveryListQuery {
 export interface DeliveryListResult {
   items: DeliveryLog[];
   limit: number;
+  page: number;
+  total: number;
+  totalPages: number;
   status?: DeliveryStatus;
   source?: string;
 }
@@ -111,6 +115,16 @@ export interface ReplayDeliveryResult {
   status: DeliveryStatus;
   replayed: boolean;
   error?: string | null;
+}
+
+export interface ReplayDeliveriesResult {
+  items: ReplayDeliveryResult[];
+}
+
+export interface DeleteDeliveriesResult {
+  selected: number;
+  deleted: number;
+  skipped: number;
 }
 
 export interface ReplayFailedRetMinusTwoResult {
@@ -162,6 +176,8 @@ export interface DeliveryService {
   listDeliveries(query: DeliveryListQuery): Promise<DeliveryListResult>;
   getDelivery(deliveryId: string): Promise<DeliveryLog | null>;
   replayDelivery(deliveryId: string): Promise<ReplayDeliveryResult>;
+  replayDeliveries(deliveryIds: string[]): Promise<ReplayDeliveriesResult>;
+  deleteCompletedDeliveries(deliveryIds: string[]): Promise<DeleteDeliveriesResult>;
   replayFailedRetMinusTwo(query: { limit: number; source?: string }): Promise<ReplayFailedRetMinusTwoResult>;
   compensateStaleQueued(query: { limit: number; olderThanMinutes: number; source?: string }): Promise<CompensateStaleQueuedResult>;
   enqueueKeepaliveIfDue(config: KeepaliveConfig, now?: Date): Promise<ScheduledKeepaliveResult>;

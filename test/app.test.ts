@@ -57,6 +57,9 @@ const createServices = (): AppServices => ({
         }
       ],
       limit: 20,
+      page: 1,
+      total: 1,
+      totalPages: 1,
       status: undefined,
       source: undefined
     }),
@@ -82,6 +85,21 @@ const createServices = (): AppServices => ({
       status: "queued",
       replayed: true,
       error: null
+    }),
+    replayDeliveries: vi.fn().mockResolvedValue({
+      items: [
+        {
+          deliveryId: "delivery-1",
+          status: "queued",
+          replayed: true,
+          error: null
+        }
+      ]
+    }),
+    deleteCompletedDeliveries: vi.fn().mockResolvedValue({
+      selected: 1,
+      deleted: 1,
+      skipped: 0
     }),
     replayFailedRetMinusTwo: vi.fn().mockResolvedValue({
       items: [
@@ -224,6 +242,9 @@ describe("app routes", () => {
     expect(response.headers.get("content-type")).toContain("text/html");
     expect(body).toContain("<svg");
     expect(body).toContain("session-1");
+    expect(body).toContain("返回管理主页");
+    expect(body).toContain("const schedulePoll");
+    expect(body).not.toContain("setInterval(fetchStatus");
   });
 
   it("should render dashboard page via query token", async () => {
@@ -237,19 +258,26 @@ describe("app routes", () => {
     expect(body).toContain("手动发送测试");
     expect(body).toContain("10");
     expect(body).toContain("12");
+    expect(body).toContain("const scheduleRefresh");
+    expect(body).not.toContain("window.setInterval");
   });
 
   it("should list deliveries", async () => {
     const context = createContext();
     const app = createApp(context);
 
-    const response = await app.request("http://localhost/admin/deliveries?token=admin-token&limit=10&status=delivered");
-    const body = (await response.json()) as { code: number; data: { items: Array<{ deliveryId: string }> } };
+    const response = await app.request("http://localhost/admin/deliveries?token=admin-token&limit=10&page=2&status=delivered");
+    const body = (await response.json()) as {
+      code: number;
+      data: { items: Array<{ deliveryId: string }>; page: number; total: number; totalPages: number };
+    };
 
     expect(response.status).toBe(200);
     expect(body.data.items[0]?.deliveryId).toBe("delivery-1");
+    expect(body.data).toMatchObject({ page: 1, total: 1, totalPages: 1 });
     expect(context.services.delivery.listDeliveries).toHaveBeenCalledWith({
       limit: 10,
+      page: 2,
       status: "delivered",
       source: undefined
     });
@@ -258,7 +286,7 @@ describe("app routes", () => {
   it("should render delivery log page via query token", async () => {
     const app = createApp(createContext());
     const response = await app.request(
-      "http://localhost/admin/deliveries/page?token=admin-token&status=failed&source=github&limit=50&refresh=10"
+      "http://localhost/admin/deliveries/page?token=admin-token&status=failed&source=github&limit=50&page=2&refresh=10"
     );
     const body = await response.text();
 
@@ -268,9 +296,37 @@ describe("app routes", () => {
     expect(body).toContain("failed");
     expect(body).toContain("github");
     expect(body).toContain("10");
+    expect(body).toContain("const initialPage = \"2\"");
+    expect(body).toContain("复制含凭证地址");
+    expect(body).toContain('data-label="消息预览"');
+    expect(body).toContain("返回管理主页");
+    expect(body).toContain('<dialog class="detail-dialog"');
+    expect(body).toContain("detailDialog.showModal");
+    expect(body).toContain("detailCloseBtn.addEventListener");
+    const script = body.match(/<script>([\s\S]*)<\/script>/)?.[1] ?? "";
+    expect(() => new Function(script)).not.toThrow();
+    expect(body).toContain('data-replay-delivery-id="');
+    expect(body).toContain("const replayDelivery");
+    expect(body).toContain('id="select-all-page-btn"');
+    expect(body).toContain('id="bulk-replay-btn"');
+    expect(body).toContain('id="bulk-delete-btn"');
+    expect(body).toContain("const replaySelectedDeliveries");
+    expect(body).toContain("const deleteSelectedDeliveries");
+    expect(body).toContain('id="pagination-summary"');
+    expect(body).toContain("const renderPagination");
+    expect(body).toContain("prevPageBtn.addEventListener");
   });
 
-  it("should replay a single failed ret -2 delivery", async () => {
+  it("should reject invalid delivery page", async () => {
+    const app = createApp(createContext());
+    const response = await app.request("http://localhost/admin/deliveries?token=admin-token&page=0");
+    const body = (await response.json()) as { code: number; error: string };
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("invalid_page");
+  });
+
+  it("should replay a single failed delivery", async () => {
     const context = createContext();
     const app = createApp(context);
 
@@ -283,6 +339,57 @@ describe("app routes", () => {
     expect(body.data.deliveryId).toBe("delivery-1");
     expect(body.data.status).toBe("queued");
     expect(context.services.delivery.replayDelivery).toHaveBeenCalledWith("delivery-1");
+  });
+
+  it("should replay selected deliveries in a batch", async () => {
+    const context = createContext();
+    const app = createApp(context);
+    const deliveryIds = ["11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222"];
+
+    const response = await app.request("http://localhost/admin/deliveries/batch/replay?token=admin-token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ deliveryIds })
+    });
+
+    expect(response.status).toBe(202);
+    expect(context.services.delivery.replayDeliveries).toHaveBeenCalledWith(deliveryIds);
+  });
+
+  it("should delete selected completed deliveries in a batch", async () => {
+    const context = createContext();
+    const app = createApp(context);
+    const deliveryIds = ["11111111-1111-1111-1111-111111111111"];
+
+    const response = await app.request("http://localhost/admin/deliveries/batch/delete?token=admin-token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ deliveryIds })
+    });
+    const body = (await response.json()) as { code: number; data: { selected: number; deleted: number; skipped: number } };
+
+    expect(response.status).toBe(200);
+    expect(body.data).toMatchObject({ selected: 1, deleted: 1, skipped: 0 });
+    expect(context.services.delivery.deleteCompletedDeliveries).toHaveBeenCalledWith(deliveryIds);
+  });
+
+  it("should reject invalid delivery ids for batch operations", async () => {
+    const app = createApp(createContext());
+    const response = await app.request("http://localhost/admin/deliveries/batch/replay?token=admin-token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ deliveryIds: [] })
+    });
+    const body = (await response.json()) as { code: number; error: string };
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("invalid_delivery_ids");
   });
 
   it("should replay failed ret -2 deliveries in batches", async () => {
