@@ -41,11 +41,11 @@
 import { Hono } from "hono";
 import * as QRCode from "qrcode";
 import type { AppContext, DeliveryListQuery, DeliveryStatus } from "./contracts";
-import { renderDashboardPage } from "./lib/dashboard-page";
+import { renderDashboardPage } from "./views/dashboard-page";
 import { AppError, isAppError, isIlinkApiError, toErrorDetails, toErrorMessage } from "./lib/errors";
-import { renderDeliveryLogPage } from "./lib/delivery-log-page";
+import { renderDeliveryLogPage } from "./views/delivery-log-page";
 import { getQrcodeRenderContent } from "./lib/ilink-qrcode";
-import { renderQrcodeLoginPage } from "./lib/qrcode-page";
+import { renderQrcodeLoginPage } from "./views/qrcode-page";
 import { parseJsonBody, validateBotId, validateIncomingMessage, validateSource } from "./lib/validation";
 
 // ==========================================================================
