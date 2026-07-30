@@ -4,10 +4,10 @@ import { nowIso } from "../lib/time";
 
 interface DeliveryLogRow {
   delivery_id: string;
+  bot_id: string;
   source: string;
   trace_id: string | null;
   dedupe_key: string | null;
-  idempotency_key: string | null;
   text: string;
   meta_json: string | null;
   status: DeliveryStatus;
@@ -26,10 +26,11 @@ const parseMeta = (raw: string | null): Record<string, unknown> | null => {
   return JSON.parse(raw) as Record<string, unknown>;
 };
 
+/** 幂等唯一索引冲突判定（bot_id + source + dedupe_key） */
 const isUniqueConstraintError = (error: unknown): boolean =>
-  error instanceof Error && error.message.includes("UNIQUE constraint failed: delivery_log.idempotency_key");
+  error instanceof Error && error.message.includes("UNIQUE constraint failed: delivery_log");
 
-const buildDeliveryListFilter = (input: Pick<DeliveryListQuery, "status" | "source">) => {
+const buildDeliveryListFilter = (input: Pick<DeliveryListQuery, "status" | "source" | "botId">) => {
   const filters: string[] = [];
   const bindings: Array<string | number> = [];
 
@@ -43,6 +44,11 @@ const buildDeliveryListFilter = (input: Pick<DeliveryListQuery, "status" | "sour
     bindings.push(input.source);
   }
 
+  if (input.botId) {
+    filters.push("bot_id = ?");
+    bindings.push(input.botId);
+  }
+
   return {
     whereClause: filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "",
     bindings
@@ -53,6 +59,7 @@ export class DeliveryLogRepository {
   public constructor(private readonly db: D1Database) {}
 
   public async createQueued(input: {
+    botId: string;
     source: string;
     traceId: string;
     dedupeKey: string | null;
@@ -60,7 +67,6 @@ export class DeliveryLogRepository {
     meta: Record<string, unknown> | null;
   }): Promise<{ delivery: DeliveryLog; duplicate: boolean }> {
     const deliveryId = createDeliveryId();
-    const idempotencyKey = input.dedupeKey ? `${input.source}:${input.dedupeKey}` : null;
     const now = nowIso();
 
     try {
@@ -69,10 +75,10 @@ export class DeliveryLogRepository {
           `
             INSERT INTO delivery_log (
               delivery_id,
+              bot_id,
               source,
               trace_id,
               dedupe_key,
-              idempotency_key,
               text,
               meta_json,
               status,
@@ -86,10 +92,10 @@ export class DeliveryLogRepository {
         )
         .bind(
           deliveryId,
+          input.botId,
           input.source,
           input.traceId,
           input.dedupeKey,
-          idempotencyKey,
           input.text,
           input.meta ? JSON.stringify(input.meta) : null,
           now,
@@ -97,11 +103,11 @@ export class DeliveryLogRepository {
         )
         .run();
     } catch (error) {
-      if (!idempotencyKey || !isUniqueConstraintError(error)) {
+      if (!input.dedupeKey || !isUniqueConstraintError(error)) {
         throw error;
       }
 
-      const existing = await this.getByIdempotencyKey(idempotencyKey);
+      const existing = await this.getByIdempotencyKey(input.botId, input.source, input.dedupeKey);
       if (!existing) {
         throw error;
       }
@@ -129,10 +135,10 @@ export class DeliveryLogRepository {
         `
           SELECT
             delivery_id,
+            bot_id,
             source,
             trace_id,
             dedupe_key,
-            idempotency_key,
             text,
             meta_json,
             status,
@@ -158,10 +164,10 @@ export class DeliveryLogRepository {
         `
           SELECT
             delivery_id,
+            bot_id,
             source,
             trace_id,
             dedupe_key,
-            idempotency_key,
             text,
             meta_json,
             status,
@@ -182,7 +188,7 @@ export class DeliveryLogRepository {
     return result.results.map((row) => this.toEntity(row));
   }
 
-  public async count(input: Pick<DeliveryListQuery, "status" | "source">): Promise<number> {
+  public async count(input: Pick<DeliveryListQuery, "status" | "source" | "botId">): Promise<number> {
     const { whereClause, bindings } = buildDeliveryListFilter(input);
     const row = await this.db
       .prepare(
@@ -235,10 +241,10 @@ export class DeliveryLogRepository {
         `
           SELECT
             delivery_id,
+            bot_id,
             source,
             trace_id,
             dedupe_key,
-            idempotency_key,
             text,
             meta_json,
             status,
@@ -277,10 +283,10 @@ export class DeliveryLogRepository {
         `
           SELECT
             delivery_id,
+            bot_id,
             source,
             trace_id,
             dedupe_key,
-            idempotency_key,
             text,
             meta_json,
             status,
@@ -317,16 +323,16 @@ export class DeliveryLogRepository {
     await this.update(deliveryId, "queued", 0, null, null);
   }
 
-  private async getByIdempotencyKey(idempotencyKey: string): Promise<DeliveryLog | null> {
+  private async getByIdempotencyKey(botId: string, source: string, dedupeKey: string): Promise<DeliveryLog | null> {
     const row = await this.db
       .prepare(
         `
           SELECT
             delivery_id,
+            bot_id,
             source,
             trace_id,
             dedupe_key,
-            idempotency_key,
             text,
             meta_json,
             status,
@@ -336,10 +342,10 @@ export class DeliveryLogRepository {
             created_at,
             updated_at
           FROM delivery_log
-          WHERE idempotency_key = ?
+          WHERE bot_id = ? AND source = ? AND dedupe_key = ?
         `
       )
-      .bind(idempotencyKey)
+      .bind(botId, source, dedupeKey)
       .first<DeliveryLogRow>();
 
     return row ? this.toEntity(row) : null;
@@ -367,10 +373,10 @@ export class DeliveryLogRepository {
   private toEntity(row: DeliveryLogRow): DeliveryLog {
     return {
       deliveryId: row.delivery_id,
+      botId: row.bot_id,
       source: row.source,
       traceId: row.trace_id,
       dedupeKey: row.dedupe_key,
-      idempotencyKey: row.idempotency_key,
       text: row.text,
       meta: parseMeta(row.meta_json),
       status: row.status,

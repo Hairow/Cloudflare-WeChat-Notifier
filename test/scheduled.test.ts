@@ -18,7 +18,9 @@ const createContext = (): AppContext => ({
       createLoginQrcode: vi.fn(),
       getLoginStatus: vi.fn(),
       activateBot: vi.fn(),
-      getBotStatus: vi.fn()
+      getBotStatus: vi.fn(),
+      listBots: vi.fn(),
+      deleteBot: vi.fn()
     },
     delivery: {
       enqueueDelivery: vi.fn(),
@@ -36,11 +38,18 @@ const createContext = (): AppContext => ({
       }),
       enqueueKeepaliveIfDue: vi.fn().mockResolvedValue({
         enqueued: true,
-        reason: "queued",
-        deliveryId: "delivery-keepalive",
-        lastDeliveryId: null,
-        lastCreatedAt: null,
-        nextDueAt: "2026-05-15T00:00:00.000Z"
+        perBot: [
+          {
+            botId: "bot-1",
+            label: "bot-1",
+            enqueued: true,
+            reason: "queued",
+            deliveryId: "delivery-keepalive",
+            lastDeliveryId: null,
+            lastCreatedAt: null,
+            nextDueAt: "2026-05-15T00:00:00.000Z"
+          }
+        ]
       }),
       processQueuedDelivery: vi.fn(),
       handleQueueProcessingError: vi.fn()
@@ -82,8 +91,7 @@ describe("scheduled handler", () => {
       expect.objectContaining({
         event: "keepalive",
         enqueued: true,
-        reason: "queued",
-        deliveryId: "delivery-keepalive"
+        totalBots: 1
       })
     );
   });

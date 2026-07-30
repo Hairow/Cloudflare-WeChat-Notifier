@@ -17,19 +17,15 @@ export class DefaultHealthService {
       database = "error";
     }
 
-    let botStatus: BotStatus = "not_logged_in";
-    const currentBot = await this.botRepository.getCurrent();
-    if (currentBot) {
-      botStatus = currentBot.status;
-    }
+    const bots = await this.botRepository.listAllBrief();
 
     return {
       service: "ilink-cloudflare",
       timestamp: nowIso(),
       database,
       queue: this.queue ? "configured" : "missing",
-      botStatus
+      botCount: bots.length,
+      bots
     };
   }
 }
-

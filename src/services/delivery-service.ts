@@ -1,4 +1,5 @@
 import type {
+  BotListItem,
   CompensateStaleQueuedResult,
   DeleteDeliveriesResult,
   DeliveryListQuery,
@@ -11,6 +12,7 @@ import type {
   ReplayDeliveryResult,
   ReplayDeliveriesResult,
   ReplayFailedRetMinusTwoResult,
+  ScheduledKeepalivePerBotResult,
   ScheduledKeepaliveResult
 } from "../contracts";
 import { IlinkClient } from "../ilink/client";
@@ -31,8 +33,12 @@ export class DefaultDeliveryService {
     private readonly ilinkClient: IlinkClient
   ) {}
 
-  public async enqueueDelivery(source: string, payload: IncomingMessagePayload): Promise<EnqueueDeliveryResult> {
+  /**
+   * 将消息写入 D1 并投入 Cloudflare Queue，关联到指定 Bot。
+   */
+  public async enqueueDelivery(botId: string, source: string, payload: IncomingMessagePayload): Promise<EnqueueDeliveryResult> {
     const result = await this.deliveryLogRepository.createQueued({
+      botId,
       source,
       traceId: payload.traceId ?? createTraceId(),
       dedupeKey: payload.dedupeKey ?? null,
@@ -43,6 +49,7 @@ export class DefaultDeliveryService {
     if (result.duplicate) {
       return {
         deliveryId: result.delivery.deliveryId,
+        botId: result.delivery.botId,
         duplicate: true,
         status: result.delivery.status
       };
@@ -65,6 +72,7 @@ export class DefaultDeliveryService {
 
     return {
       deliveryId: result.delivery.deliveryId,
+      botId: result.delivery.botId,
       duplicate: false,
       status: "queued"
     };
@@ -82,7 +90,8 @@ export class DefaultDeliveryService {
       total,
       totalPages,
       status: query.status,
-      source: query.source
+      source: query.source,
+      botId: query.botId
     };
   }
 
@@ -224,55 +233,102 @@ export class DefaultDeliveryService {
     };
   }
 
+  /**
+   * 检查所有 Bot 的保活状态并执行保活。
+   * 多 Bot 模式下遍历所有 ready 的 Bot，逐个发送保活消息。
+   */
   public async enqueueKeepaliveIfDue(config: KeepaliveConfig, now = new Date()): Promise<ScheduledKeepaliveResult> {
+    const perBot: ScheduledKeepalivePerBotResult[] = [];
+
     if (!config.enabled) {
-      return {
-        enqueued: false,
-        reason: "disabled",
-        deliveryId: null,
-        lastDeliveryId: null,
-        lastCreatedAt: null,
-        nextDueAt: null
-      };
-    }
-
-    const latest = (await this.listDeliveries({ limit: 1, page: 1, source: config.source })).items[0] ?? null;
-    const intervalMs = config.intervalHours * MS_PER_HOUR;
-    const nextDueAt = latest ? new Date(new Date(latest.createdAt).getTime() + intervalMs) : null;
-
-    if (nextDueAt && nextDueAt.getTime() > now.getTime()) {
-      return {
-        enqueued: false,
-        reason: "not_due",
-        deliveryId: null,
-        lastDeliveryId: latest.deliveryId,
-        lastCreatedAt: latest.createdAt,
-        nextDueAt: nextDueAt.toISOString()
-      };
-    }
-
-    const intervalBucket = Math.floor(now.getTime() / intervalMs);
-    const result = await this.enqueueDelivery(config.source, {
-      text: config.text,
-      traceId: `keepalive-${intervalBucket}`,
-      dedupeKey: `interval-${intervalBucket}`,
-      meta: {
-        kind: "keepalive",
-        intervalHours: config.intervalHours,
-        scheduledAt: now.toISOString()
+      const bots = await this.botRepository.listAllBrief();
+      for (const bot of bots) {
+        perBot.push({
+          botId: bot.botId,
+          label: bot.label,
+          enqueued: false,
+          reason: "disabled",
+          deliveryId: null,
+          lastDeliveryId: null,
+          lastCreatedAt: null,
+          nextDueAt: null
+        });
       }
-    });
+      return { enqueued: false, perBot };
+    }
+
+    // 获取所有 ready 状态的 Bot
+    const readyBots = await this.botRepository.listAll();
+    const readyIds = new Set(readyBots.filter((b) => b.status === "ready").map((b) => b.botId));
+    const allBots = await this.botRepository.listAllBrief();
+
+    for (const botInfo of allBots) {
+      if (!readyIds.has(botInfo.botId)) {
+        perBot.push({
+          botId: botInfo.botId,
+          label: botInfo.label,
+          enqueued: false,
+          reason: "skipped",
+          deliveryId: null,
+          lastDeliveryId: null,
+          lastCreatedAt: null,
+          nextDueAt: null
+        });
+        continue;
+      }
+
+      const latest = (await this.listDeliveries({ limit: 1, page: 1, source: config.source, botId: botInfo.botId })).items[0] ?? null;
+      const intervalMs = config.intervalHours * MS_PER_HOUR;
+      const nextDueAt = latest ? new Date(new Date(latest.createdAt).getTime() + intervalMs) : null;
+
+      if (nextDueAt && nextDueAt.getTime() > now.getTime()) {
+        perBot.push({
+          botId: botInfo.botId,
+          label: botInfo.label,
+          enqueued: false,
+          reason: "not_due",
+          deliveryId: null,
+          lastDeliveryId: latest.deliveryId,
+          lastCreatedAt: latest.createdAt,
+          nextDueAt: nextDueAt.toISOString()
+        });
+        continue;
+      }
+
+      const intervalBucket = Math.floor(now.getTime() / intervalMs);
+      const result = await this.enqueueDelivery(botInfo.botId, config.source, {
+        text: config.text,
+        traceId: `keepalive-${botInfo.botId}-${intervalBucket}`,
+        dedupeKey: `interval-${intervalBucket}`,
+        meta: {
+          kind: "keepalive",
+          intervalHours: config.intervalHours,
+          scheduledAt: now.toISOString()
+        }
+      });
+
+      perBot.push({
+        botId: botInfo.botId,
+        label: botInfo.label,
+        enqueued: !result.duplicate,
+        reason: result.duplicate ? "duplicate" : "queued",
+        deliveryId: result.deliveryId,
+        lastDeliveryId: latest?.deliveryId ?? null,
+        lastCreatedAt: latest?.createdAt ?? null,
+        nextDueAt: new Date(now.getTime() + intervalMs).toISOString()
+      });
+    }
 
     return {
-      enqueued: !result.duplicate,
-      reason: result.duplicate ? "duplicate" : "queued",
-      deliveryId: result.deliveryId,
-      lastDeliveryId: latest?.deliveryId ?? null,
-      lastCreatedAt: latest?.createdAt ?? null,
-      nextDueAt: new Date(now.getTime() + intervalMs).toISOString()
+      enqueued: perBot.some((b) => b.enqueued),
+      perBot
     };
   }
 
+  /**
+   * 队列消费者：处理单条投递。
+   * 从 delivery.botId 查找对应 Bot，不再使用全局单例。
+   */
   public async processQueuedDelivery(deliveryId: string, attempts: number): Promise<QueueProcessResult> {
     const delivery = await this.deliveryLogRepository.getById(deliveryId);
     if (!delivery) {
@@ -282,9 +338,9 @@ export class DefaultDeliveryService {
       };
     }
 
-    const bot = await this.botRepository.getCurrent();
+    const bot = await this.botRepository.getById(delivery.botId);
     if (!bot) {
-      const message = "未找到已登录 bot，请重新登录。";
+      const message = `未找到 botId=${delivery.botId} 的 Bot，可能已被删除。`;
       await this.deliveryLogRepository.markFailed(deliveryId, attempts, message, null);
       return {
         outcome: "ack",
@@ -295,8 +351,8 @@ export class DefaultDeliveryService {
     }
 
     if (!bot.contextToken || bot.status === "logged_in" || bot.status === "needs_activation") {
-      const message = "bot 尚未激活，请先调用 /admin/bot/activate。";
-      await this.botRepository.updateStatus("needs_activation", message);
+      const message = "bot 尚未激活，请先调用 /admin/bot/:botId/activate。";
+      await this.botRepository.updateStatus(delivery.botId, "needs_activation", message);
       await this.deliveryLogRepository.markFailed(deliveryId, attempts, message, null);
       return {
         outcome: "ack",
@@ -308,7 +364,7 @@ export class DefaultDeliveryService {
 
     try {
       await this.ilinkClient.sendMessage(bot, delivery.text);
-      await this.botRepository.setLastError(null);
+      await this.botRepository.setLastError(delivery.botId, null);
       await this.deliveryLogRepository.markDelivered(deliveryId, attempts, 200);
       return {
         outcome: "ack",
@@ -331,11 +387,11 @@ export class DefaultDeliveryService {
         }
 
         if (error.category === "unauthorized") {
-          await this.botRepository.updateStatus("needs_login", message);
+          await this.botRepository.updateStatus(delivery.botId, "needs_login", message);
         } else if (error.category === "context") {
-          await this.botRepository.updateStatus("needs_activation", message);
+          await this.botRepository.updateStatus(delivery.botId, "needs_activation", message);
         } else {
-          await this.botRepository.setLastError(message);
+          await this.botRepository.setLastError(delivery.botId, message);
         }
 
         await this.deliveryLogRepository.markFailed(deliveryId, attempts, message, error.httpStatus ?? null);
@@ -358,7 +414,7 @@ export class DefaultDeliveryService {
         };
       }
 
-      await this.botRepository.setLastError(message);
+      await this.botRepository.setLastError(delivery.botId, message);
       await this.deliveryLogRepository.markFailed(deliveryId, attempts, message, null);
       return {
         outcome: "ack",

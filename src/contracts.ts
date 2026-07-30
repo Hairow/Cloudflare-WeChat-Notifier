@@ -16,6 +16,7 @@
  *   - 数据不可变：所有接口字段均为只读语义（通过类型约束）
  *   - 面向接口编程：路由层只依赖 AppContext，不直接 import 具体实现
  *   - 错误统一：服务层抛出 AppError / IlinkApiError，由路由层统一捕获
+ *   - 多 Bot 支持：botId 贯穿整个投递链路，Webhook 路由携带 botId
  */
 
 // ==========================================================================
@@ -46,12 +47,14 @@ export type DeliveryStatus = "queued" | "retrying" | "delivered" | "failed";
 
 /**
  * Bot 持久化状态。
- * 数据库中只存一份（singleton 模式），每次登录/激活更新同一条记录。
+ * 多 Bot 模式下，bot_id 为主键，每个 Bot 独立存储一行。
  * 敏感字段（botToken、ilinkUserId、contextToken）在 D1 中以 AES-GCM 加密存储。
  */
 export interface BotState {
   /** iLink Bot 唯一标识，扫码登录成功后获得 */
   botId: string;
+  /** 用户标签，便于识别（如 "张三-OA通知"） */
+  label: string;
   /** Bot 鉴权令牌，所有需要鉴权的 API 请求都以此为 Bearer Token */
   botToken: string;
   /** 当前登录用户的 iLink 用户 ID，发送消息时的 to_user_id */
@@ -72,7 +75,17 @@ export interface BotState {
 export interface BotStatusView {
   status: BotStatus;
   botId: string | null;
+  label: string | null;
   updatedAt: string | null;
+  lastError: string | null;
+}
+
+/** Bot 列表项（脱敏，用于管理页面展示） */
+export interface BotListItem {
+  botId: string;
+  label: string;
+  status: BotStatus;
+  updatedAt: string;
   lastError: string | null;
 }
 
@@ -106,14 +119,14 @@ export interface LoginSession {
 export interface DeliveryLog {
   /** 投递唯一标识（UUID V7，按时间有序） */
   deliveryId: string;
+  /** 目标 Bot ID，投递将发送到该 Bot 对应的微信 */
+  botId: string;
   /** 消息来源，对应 Webhook URL 中的 :source 参数 */
   source: string;
   /** 调用方传入的追踪 ID，用于跨系统关联日志 */
   traceId: string | null;
-  /** 幂等去重键，与 source 联合构成唯一约束 */
+  /** 幂等去重键，与 botId + source 联合构成唯一约束 */
   dedupeKey: string | null;
-  /** 系统内部生成的幂等键（source + dedupeKey 的 SHA-256） */
-  idempotencyKey: string | null;
   /** 要发送的文本内容 */
   text: string;
   /** 调用方附带的扩展元数据（JSON 对象） */
@@ -151,6 +164,12 @@ export interface QueueDeliveryMessage {
   deliveryId: string;
 }
 
+/** 创建登录二维码的请求参数 */
+export interface CreateLoginQrcodeInput {
+  /** Bot 标签（如 "张三-OA通知"），用于后续识别 */
+  label?: string;
+}
+
 /** 创建登录二维码的响应 */
 export interface LoginQrcodeResponse {
   sessionId: string;
@@ -178,6 +197,8 @@ export interface ActivateBotResponse {
 /** 入队投递结果 */
 export interface EnqueueDeliveryResult {
   deliveryId: string;
+  /** 目标 Bot ID */
+  botId: string;
   /** 是否为重复投递（幂等拦截） */
   duplicate: boolean;
   status: DeliveryStatus;
@@ -189,6 +210,8 @@ export interface DeliveryListQuery {
   page: number;
   status?: DeliveryStatus;
   source?: string;
+  /** 可选，按 Bot ID 筛选 */
+  botId?: string;
 }
 
 /** 投递日志列表分页结果 */
@@ -200,6 +223,7 @@ export interface DeliveryListResult {
   totalPages: number;
   status?: DeliveryStatus;
   source?: string;
+  botId?: string;
 }
 
 /** 队列消费处理结果，决定消息的 ack/retry 策略 */
@@ -271,15 +295,21 @@ export interface KeepaliveConfig {
 
 /** 定时保活执行结果 */
 export interface ScheduledKeepaliveResult {
-  /** 本次是否入队了一条保活消息 */
+  /** 总体是否至少有一条入队 */
   enqueued: boolean;
-  /** 未入队原因：disabled（已禁用）/ not_due（未到时间）/ duplicate（重复） */
-  reason: "disabled" | "not_due" | "queued" | "duplicate";
+  /** 每个 Bot 的保活结果 */
+  perBot: ScheduledKeepalivePerBotResult[];
+}
+
+/** 单个 Bot 的保活结果 */
+export interface ScheduledKeepalivePerBotResult {
+  botId: string;
+  label: string;
+  enqueued: boolean;
+  reason: "disabled" | "not_due" | "queued" | "duplicate" | "skipped";
   deliveryId: string | null;
-  /** 上次保活消息 ID，用于判断是否重复 */
   lastDeliveryId: string | null;
   lastCreatedAt: string | null;
-  /** 下次保活到期时间 */
   nextDueAt: string | null;
 }
 
@@ -289,7 +319,10 @@ export interface HealthResponse {
   timestamp: string;
   database: "ok" | "error";
   queue: "configured" | "missing";
-  botStatus: BotStatus;
+  /** Bot 总数 */
+  botCount: number;
+  /** Bot 简要状态列表 */
+  bots: BotListItem[];
 }
 
 // ==========================================================================
@@ -299,19 +332,23 @@ export interface HealthResponse {
 /** 管理员服务：处理 Bot 登录、激活、状态查询 */
 export interface AdminService {
   /** 创建登录二维码会话 */
-  createLoginQrcode(): Promise<LoginQrcodeResponse>;
+  createLoginQrcode(input?: CreateLoginQrcodeInput): Promise<LoginQrcodeResponse>;
   /** 轮询扫码状态 */
   getLoginStatus(sessionId: string): Promise<LoginStatusResponse>;
-  /** 激活 Bot（调用 getUpdates 获取 context_token） */
-  activateBot(): Promise<ActivateBotResponse>;
-  /** 查询当前 Bot 状态 */
-  getBotStatus(): Promise<BotStatusView>;
+  /** 激活指定 Bot（调用 getUpdates 获取 context_token） */
+  activateBot(botId: string): Promise<ActivateBotResponse>;
+  /** 查询指定 Bot 状态，不传 botId 则返回第一个 Ready Bot */
+  getBotStatus(botId?: string): Promise<BotStatusView>;
+  /** 列出所有 Bot */
+  listBots(): Promise<BotListItem[]>;
+  /** 删除指定 Bot */
+  deleteBot(botId: string): Promise<void>;
 }
 
 /** 投递服务：消息入队、队列消费、日志管理 */
 export interface DeliveryService {
   /** 将消息写入 D1 并投入 Cloudflare Queue */
-  enqueueDelivery(source: string, payload: IncomingMessagePayload): Promise<EnqueueDeliveryResult>;
+  enqueueDelivery(botId: string, source: string, payload: IncomingMessagePayload): Promise<EnqueueDeliveryResult>;
   /** 分页查询投递日志 */
   listDeliveries(query: DeliveryListQuery): Promise<DeliveryListResult>;
   /** 查询单条投递详情 */
@@ -326,7 +363,7 @@ export interface DeliveryService {
   replayFailedRetMinusTwo(query: { limit: number; source?: string }): Promise<ReplayFailedRetMinusTwoResult>;
   /** 补偿卡在 queued 状态的过期投递（Cron 触发） */
   compensateStaleQueued(query: { limit: number; olderThanMinutes: number; source?: string }): Promise<CompensateStaleQueuedResult>;
-  /** 检查并执行保活（Cron 触发） */
+  /** 检查并执行保活（Cron 触发），遍历所有 ready Bot */
   enqueueKeepaliveIfDue(config: KeepaliveConfig, now?: Date): Promise<ScheduledKeepaliveResult>;
   /** 队列消费者处理单条投递 */
   processQueuedDelivery(deliveryId: string, attempts: number): Promise<QueueProcessResult>;
@@ -336,7 +373,7 @@ export interface DeliveryService {
 
 /** 健康检查服务 */
 export interface HealthService {
-  /** 探测数据库、队列、Bot 状态 */
+  /** 探测数据库、队列、所有 Bot 状态 */
   probe(): Promise<HealthResponse>;
 }
 

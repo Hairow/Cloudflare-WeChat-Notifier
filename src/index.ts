@@ -113,11 +113,16 @@ export const handleScheduled = async (controller: ScheduledController, context: 
     intervalHours: context.config.keepalive.intervalHours,
     source: context.config.keepalive.source,
     enqueued: keepalive.enqueued,
-    reason: keepalive.reason,
-    deliveryId: keepalive.deliveryId,
-    lastDeliveryId: keepalive.lastDeliveryId,
-    lastCreatedAt: keepalive.lastCreatedAt,
-    nextDueAt: keepalive.nextDueAt
+    totalBots: keepalive.perBot.length,
+    perBot: keepalive.perBot.map((b) => ({
+      botId: b.botId,
+      label: b.label,
+      enqueued: b.enqueued,
+      reason: b.reason,
+      deliveryId: b.deliveryId,
+      lastDeliveryId: b.lastDeliveryId,
+      nextDueAt: b.nextDueAt
+    }))
   });
 };
 

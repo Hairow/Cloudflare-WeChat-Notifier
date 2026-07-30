@@ -26,13 +26,25 @@ const createServices = (): AppServices => ({
     getBotStatus: vi.fn().mockResolvedValue({
       status: "ready",
       botId: "bot-1",
+      label: "bot-1",
       updatedAt: "2026-03-26T00:00:00.000Z",
       lastError: null
-    })
+    }),
+    listBots: vi.fn().mockResolvedValue([
+      {
+        botId: "bot-1",
+        label: "bot-1",
+        status: "ready",
+        updatedAt: "2026-03-26T00:00:00.000Z",
+        lastError: null
+      }
+    ]),
+    deleteBot: vi.fn().mockResolvedValue(undefined)
   },
   delivery: {
     enqueueDelivery: vi.fn().mockResolvedValue({
       deliveryId: "delivery-1",
+      botId: "bot-1",
       duplicate: false,
       status: "queued"
     }),
@@ -40,10 +52,10 @@ const createServices = (): AppServices => ({
       items: [
         {
           deliveryId: "delivery-1",
+          botId: "bot-1",
           source: "github",
           traceId: "trace-1",
           dedupeKey: "build-1",
-          idempotencyKey: "github:build-1",
           text: "build completed",
           meta: {
             env: "prod"
@@ -61,14 +73,15 @@ const createServices = (): AppServices => ({
       total: 1,
       totalPages: 1,
       status: undefined,
-      source: undefined
+      source: undefined,
+      botId: undefined
     }),
     getDelivery: vi.fn().mockResolvedValue({
       deliveryId: "delivery-1",
+      botId: "bot-1",
       source: "github",
       traceId: "trace-1",
       dedupeKey: "build-1",
-      idempotencyKey: "github:build-1",
       text: "build completed",
       meta: {
         env: "prod"
@@ -128,11 +141,7 @@ const createServices = (): AppServices => ({
     }),
     enqueueKeepaliveIfDue: vi.fn().mockResolvedValue({
       enqueued: false,
-      reason: "not_due",
-      deliveryId: null,
-      lastDeliveryId: "delivery-1",
-      lastCreatedAt: "2026-03-26T00:00:00.000Z",
-      nextDueAt: "2026-03-27T00:00:00.000Z"
+      perBot: []
     }),
     processQueuedDelivery: vi.fn().mockResolvedValue({
       outcome: "ack"
@@ -147,7 +156,8 @@ const createServices = (): AppServices => ({
       timestamp: "2026-03-26T00:00:00.000Z",
       database: "ok",
       queue: "configured",
-      botStatus: "ready"
+      botCount: 1,
+      bots: []
     })
   }
 });
@@ -206,7 +216,7 @@ describe("app routes", () => {
 
     expect(response.status).toBe(202);
     expect(body.data.deliveryId).toBe("delivery-1");
-    expect(context.services.delivery.enqueueDelivery).toHaveBeenCalledWith("github", {
+    expect(context.services.delivery.enqueueDelivery).toHaveBeenCalledWith("bot-1", "github", {
       text: "build completed",
       dedupeKey: "build-1",
       traceId: undefined,
@@ -279,7 +289,8 @@ describe("app routes", () => {
       limit: 10,
       page: 2,
       status: "delivered",
-      source: undefined
+      source: undefined,
+      botId: undefined
     });
   });
 

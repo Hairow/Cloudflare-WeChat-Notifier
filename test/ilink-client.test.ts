@@ -67,6 +67,7 @@ describe("IlinkClient", () => {
 
     const bot: BotState = {
       botId: "bot-1",
+      label: "bot-1",
       botToken: "bot-token",
       ilinkUserId: "user-1",
       contextToken: "context-token",

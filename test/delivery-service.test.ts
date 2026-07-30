@@ -9,10 +9,10 @@ describe("delivery replay", () => {
   it("requeues any failed delivery", async () => {
     const delivery: DeliveryLog = {
       deliveryId: "delivery-1",
+      botId: "bot-1",
       source: "github",
       traceId: null,
       dedupeKey: null,
-      idempotencyKey: null,
       text: "deploy failed",
       meta: null,
       status: "failed",
@@ -46,10 +46,10 @@ describe("delivery replay", () => {
   it("replays only failed deliveries in a selected batch", async () => {
     const failedDelivery: DeliveryLog = {
       deliveryId: "failed-delivery",
+      botId: "bot-1",
       source: "github",
       traceId: null,
       dedupeKey: null,
-      idempotencyKey: null,
       text: "deploy failed",
       meta: null,
       status: "failed",

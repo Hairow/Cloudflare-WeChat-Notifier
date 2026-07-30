@@ -46,7 +46,7 @@ import { AppError, isAppError, isIlinkApiError, toErrorDetails, toErrorMessage }
 import { renderDeliveryLogPage } from "./lib/delivery-log-page";
 import { getQrcodeRenderContent } from "./lib/ilink-qrcode";
 import { renderQrcodeLoginPage } from "./lib/qrcode-page";
-import { parseJsonBody, validateIncomingMessage, validateSource } from "./lib/validation";
+import { parseJsonBody, validateBotId, validateIncomingMessage, validateSource } from "./lib/validation";
 
 // ==========================================================================
 // 工具函数：Token 提取
@@ -117,6 +117,7 @@ const parseDeliveryListQuery = (request: Request): DeliveryListQuery => {
   const rawPage = url.searchParams.get("page");
   const rawStatus = url.searchParams.get("status");
   const rawSource = url.searchParams.get("source")?.trim();
+  const rawBotId = url.searchParams.get("botId")?.trim();
 
   // limit：默认 20，允许 1-100
   let limit = 20;
@@ -146,11 +147,17 @@ const parseDeliveryListQuery = (request: Request): DeliveryListQuery => {
     validateSource(rawSource);
   }
 
+  // botId：可选，校验格式
+  if (rawBotId) {
+    validateBotId(rawBotId);
+  }
+
   return {
     limit,
     page,
     status: rawStatus ? (rawStatus as DeliveryStatus) : undefined,
-    source: rawSource || undefined
+    source: rawSource || undefined,
+    botId: rawBotId || undefined
   };
 };
 
@@ -607,12 +614,35 @@ export const createApp = (context: AppContext): Hono => {
   // ==============================
 
   /**
+   * GET /admin/bots
+   * 列出所有 Bot 的简要信息（脱敏）。
+   */
+  app.get("/admin/bots", async (c) => {
+    const data = await context.services.admin.listBots();
+    return c.json({
+      code: 200,
+      data
+    });
+  });
+
+  /**
    * POST /admin/bot/login/qrcode
    * 创建登录二维码会话，返回 sessionId 和 base64 图片数据。
-   * 会话有效期约 5 分钟。
+   * 请求体可含 { "label": "张三-OA通知" } 用于标记 Bot。
    */
   app.post("/admin/bot/login/qrcode", async (c) => {
-    const data = await context.services.admin.createLoginQrcode();
+    let input;
+    try {
+      input = await parseJsonBody(c.req.raw);
+    } catch {
+      input = {};
+    }
+    const label = typeof input === "object" && input !== null && !Array.isArray(input)
+      ? (input as Record<string, unknown>).label
+      : undefined;
+    const data = await context.services.admin.createLoginQrcode(
+      typeof label === "string" && label.trim() ? { label: label.trim() } : undefined
+    );
     return c.json(
       {
         code: 201,
@@ -637,13 +667,14 @@ export const createApp = (context: AppContext): Hono => {
   });
 
   /**
-   * POST /admin/bot/activate
-   * 激活 Bot：调用 getUpdates 获取 context_token 并持久化。
+   * POST /admin/bot/:botId/activate
+   * 激活指定 Bot：调用 getUpdates 获取 context_token 并持久化。
    * 前提：用户已在微信中给 ClawBot 发过消息（产生可用上下文）。
-   * 成功后 Bot 状态变为 ready。
    */
-  app.post("/admin/bot/activate", async (c) => {
-    const data = await context.services.admin.activateBot();
+  app.post("/admin/bot/:botId/activate", async (c) => {
+    const botId = c.req.param("botId");
+    validateBotId(botId);
+    const data = await context.services.admin.activateBot(botId);
     return c.json({
       code: 200,
       data
@@ -651,11 +682,58 @@ export const createApp = (context: AppContext): Hono => {
   });
 
   /**
+   * GET /admin/bot/:botId/status
+   * 查询指定 Bot 状态（脱敏，不返回 token 等敏感字段）。
+   */
+  app.get("/admin/bot/:botId/status", async (c) => {
+    const botId = c.req.param("botId");
+    validateBotId(botId);
+    const data = await context.services.admin.getBotStatus(botId);
+    return c.json({
+      code: 200,
+      data
+    });
+  });
+
+  /**
+   * DELETE /admin/bot/:botId
+   * 删除指定 Bot。
+   */
+  app.delete("/admin/bot/:botId", async (c) => {
+    const botId = c.req.param("botId");
+    validateBotId(botId);
+    await context.services.admin.deleteBot(botId);
+    return c.json({
+      code: 200,
+      message: `Bot ${botId} 已删除。`
+    });
+  });
+
+  /**
    * GET /admin/bot/status
-   * 查询当前 Bot 状态（脱敏，不返回 token 等敏感字段）。
+   * 兼容旧接口：返回第一个 Bot 的状态。
+   * 多 Bot 下推荐使用 GET /admin/bot/:botId/status。
    */
   app.get("/admin/bot/status", async (c) => {
     const data = await context.services.admin.getBotStatus();
+    return c.json({
+      code: 200,
+      data
+    });
+  });
+
+  /**
+   * POST /admin/bot/activate
+   * 兼容旧接口：激活第一个 Bot。
+   * 多 Bot 下推荐使用 POST /admin/bot/:botId/activate。
+   */
+  app.post("/admin/bot/activate", async (c) => {
+    const bots = await context.services.admin.listBots();
+    if (bots.length === 0) {
+      throw new AppError(404, "bot_not_found", "当前没有已登录的 Bot。");
+    }
+
+    const data = await context.services.admin.activateBot(bots[0].botId);
     return c.json({
       code: 200,
       data
@@ -786,18 +864,61 @@ export const createApp = (context: AppContext): Hono => {
 
   /**
    * POST /api/send
-   * 管理员手动发送测试消息。
+   * 管理员手动发送测试消息到指定 Bot。
    * 消息入队后立即返回 202，实际投递由 Queue 消费者异步处理。
    * source 固定为 "admin"。
    *
    * 请求体：
-   *   { "text": "...", "traceId"?: "...", "dedupeKey"?: "..." }
+   *   { "text": "...", "botId": "目标Bot", "traceId"?: "...", "dedupeKey"?: "..." }
    *
    * 鉴权：Bearer ADMIN_TOKEN（/api/* 中间件）
    */
   app.post("/api/send", async (c) => {
     const input = validateIncomingMessage(await parseJsonBody(c.req.raw));
-    const data = await context.services.delivery.enqueueDelivery("admin", input);
+    // 从请求体中获取 botId，不传则取第一个 ready Bot
+    const body = await parseJsonBody(c.req.raw);
+    const rawBotId = typeof body === "object" && body !== null && !Array.isArray(body)
+      ? ((body as Record<string, unknown>).botId as string | undefined)
+      : undefined;
+
+    let targetBotId: string;
+    if (rawBotId && rawBotId.trim()) {
+      targetBotId = rawBotId.trim();
+    } else {
+      const bots = await context.services.admin.listBots();
+      const readyBot = bots.find((b) => b.status === "ready");
+      if (!readyBot) {
+        throw new AppError(400, "no_bot_available", "没有可用的 Bot，请先在请求体指定 botId，或至少激活一个 Bot。");
+      }
+      targetBotId = readyBot.botId;
+    }
+
+    const data = await context.services.delivery.enqueueDelivery(targetBotId, "admin", input);
+    return c.json(
+      {
+        code: 202,
+        data
+      },
+      202
+    );
+  });
+
+  /**
+   * POST /webhook/:botId/:source
+   * 外部系统 Webhook 入站（多 Bot 模式，推荐）。
+   * URL 中指定目标 botId 和消息来源 source。
+   *
+   * 请求体：
+   *   { "text": "...", "traceId"?: "...", "dedupeKey"?: "..." }
+   *
+   * 鉴权：X-Webhook-Token（/webhook/* 中间件）
+   * 幂等：botId + source + dedupeKey 联合唯一
+   */
+  app.post("/webhook/:botId/:source", async (c) => {
+    const botId = validateBotId(c.req.param("botId"));
+    const source = validateSource(c.req.param("source"));
+    const input = validateIncomingMessage(await parseJsonBody(c.req.raw));
+    const data = await context.services.delivery.enqueueDelivery(botId, source, input);
     return c.json(
       {
         code: 202,
@@ -809,21 +930,19 @@ export const createApp = (context: AppContext): Hono => {
 
   /**
    * POST /webhook/:source
-   * 外部系统 Webhook 入站。
-   * URL 中的 :source 标识消息来源（如 github、ci、monitor），
-   * 校验后写入 D1 并入队，立即返回 202。
-   *
-   * 请求体：
-   *   { "text": "...", "traceId"?: "...", "dedupeKey"?: "..." }
-   *
-   * 鉴权：X-Webhook-Token（/webhook/* 中间件）
-   *
-   * 幂等：source + dedupeKey 联合唯一，相同消息不会重复投递
+   * 兼容旧接口：自动选择第一个 ready Bot 发送。
+   * 多 Bot 下推荐使用 POST /webhook/:botId/:source。
    */
   app.post("/webhook/:source", async (c) => {
     const source = validateSource(c.req.param("source"));
     const input = validateIncomingMessage(await parseJsonBody(c.req.raw));
-    const data = await context.services.delivery.enqueueDelivery(source, input);
+    const bots = await context.services.admin.listBots();
+    const readyBot = bots.find((b) => b.status === "ready");
+    if (!readyBot) {
+      throw new AppError(400, "no_bot_available", "没有可用的 Bot，请使用 /webhook/:botId/:source 指定目标 Bot。");
+    }
+
+    const data = await context.services.delivery.enqueueDelivery(readyBot.botId, source, input);
     return c.json(
       {
         code: 202,

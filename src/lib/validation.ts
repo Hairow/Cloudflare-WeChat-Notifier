@@ -19,6 +19,18 @@ export const validateSource = (source: string): string => {
   return source;
 };
 
+/**
+ * 校验 botId 格式。
+ * botId 必须是非空字符串，仅支持字母、数字、下划线、中划线和 @，长度 1-128。
+ */
+export const validateBotId = (botId: string): string => {
+  if (!botId || !/^[A-Za-z0-9_@-]{1,128}$/.test(botId)) {
+    throw new AppError(400, "invalid_bot_id", "botId 仅支持字母、数字、下划线、中划线和 @，长度 1-128。");
+  }
+
+  return botId;
+};
+
 export const validateIncomingMessage = (input: unknown): IncomingMessagePayload => {
   if (typeof input !== "object" || input === null || Array.isArray(input)) {
     throw new AppError(400, "invalid_payload", "请求体必须是对象。");

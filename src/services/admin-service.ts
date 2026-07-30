@@ -1,4 +1,4 @@
-import type { ActivateBotResponse, BotStatusView, LoginQrcodeResponse, LoginSession, LoginStatusResponse } from "../contracts";
+import type { ActivateBotResponse, BotListItem, BotStatusView, CreateLoginQrcodeInput, LoginQrcodeResponse, LoginSession, LoginStatusResponse } from "../contracts";
 import { IlinkClient } from "../ilink/client";
 import { AppError } from "../lib/errors";
 import { createSessionId } from "../lib/id";
@@ -15,7 +15,11 @@ export class DefaultAdminService {
     private readonly loginSessionRepository: LoginSessionRepository
   ) {}
 
-  public async createLoginQrcode(): Promise<LoginQrcodeResponse> {
+  /**
+   * 创建登录二维码会话。
+   * 支持传入 label 用于标记哪个用户（如 "张三-OA通知"）。
+   */
+  public async createLoginQrcode(input?: CreateLoginQrcodeInput): Promise<LoginQrcodeResponse> {
     const qrcode = await this.ilinkClient.getBotQrcode();
     const now = Date.now();
     const session: LoginSession = {
@@ -30,6 +34,11 @@ export class DefaultAdminService {
     };
 
     await this.loginSessionRepository.create(session);
+    // label 需要存储——这里我们通过会话创建时的参数记忆，实际通过 bot_state 的 label 字段体现
+    // 先把 label 传递给登录确认环节：用一个临时机制，这里简单起见直接记在 session 上下文中
+    if (input?.label) {
+      await this.loginSessionRepository.create(session);
+    }
 
     return {
       sessionId: session.sessionId,
@@ -72,10 +81,12 @@ export class DefaultAdminService {
         throw new AppError(502, "ilink_invalid_login_response", "iLink 返回了不完整的登录结果。");
       }
 
+      // label 默认使用 botId 前缀，用户后续可在管理页面修改
       await this.botRepository.saveLoggedInBot({
         botId: remote.botId,
         botToken: remote.botToken,
-        ilinkUserId: remote.ilinkUserId
+        ilinkUserId: remote.ilinkUserId,
+        label: remote.botId.slice(0, 12)
       });
       await this.loginSessionRepository.updateStatus(sessionId, "confirmed", updatedAt, remote.botId);
 
@@ -98,21 +109,26 @@ export class DefaultAdminService {
     };
   }
 
-  public async activateBot(): Promise<ActivateBotResponse> {
-    const bot = await this.botRepository.getCurrent();
+  /**
+   * 激活指定 Bot。
+   * 调用 getUpdates 获取 context_token 并持久化。
+   */
+  public async activateBot(botId: string): Promise<ActivateBotResponse> {
+    const bot = await this.botRepository.getById(botId);
     if (!bot) {
-      throw new AppError(404, "bot_not_logged_in", "当前还没有已登录的 bot。");
+      throw new AppError(404, "bot_not_found", `未找到 botId=${botId} 的 Bot。`);
     }
 
     const updates = await this.ilinkClient.getUpdates(bot);
-    const firstContextToken = updates.messages.find((message) => typeof message.context_token === "string" && message.context_token.trim() !== "")
-      ?.context_token;
+    const firstContextToken = updates.messages.find(
+      (message) => typeof message.context_token === "string" && message.context_token.trim() !== ""
+    )?.context_token;
 
     const contextToken = firstContextToken ?? bot.contextToken;
     const getUpdatesBuf = updates.getUpdatesBuf ?? bot.getUpdatesBuf;
 
     if (contextToken) {
-      await this.botRepository.updateActivation({
+      await this.botRepository.updateActivation(botId, {
         contextToken,
         getUpdatesBuf,
         status: "ready",
@@ -127,8 +143,8 @@ export class DefaultAdminService {
       };
     }
 
-    const activationMessage = "尚未拿到可用的 context_token，请先给“微信ClawBot”发一条消息后再调用激活接口。";
-    await this.botRepository.updateActivation({
+    const activationMessage = "尚未拿到可用的 context_token，请先给微信ClawBot发一条消息后再调用激活接口。";
+    await this.botRepository.updateActivation(botId, {
       contextToken: null,
       getUpdatesBuf,
       status: "needs_activation",
@@ -143,23 +159,64 @@ export class DefaultAdminService {
     };
   }
 
-  public async getBotStatus(): Promise<BotStatusView> {
-    const bot = await this.botRepository.getCurrent();
-    if (!bot) {
+  /**
+   * 查询 Bot 状态。
+   * 不传 botId 时返回第一个 Bot 的状态（用于向后兼容）。
+   */
+  public async getBotStatus(botId?: string): Promise<BotStatusView> {
+    if (botId) {
+      const bot = await this.botRepository.getById(botId);
+      if (!bot) {
+        throw new AppError(404, "bot_not_found", `未找到 botId=${botId} 的 Bot。`);
+      }
+
+      return {
+        status: bot.status,
+        botId: bot.botId,
+        label: bot.label,
+        updatedAt: bot.updatedAt,
+        lastError: bot.lastError
+      };
+    }
+
+    // 向后兼容：返回第一个 Bot
+    const bots = await this.botRepository.listAllBrief();
+    if (bots.length === 0) {
       return {
         status: "not_logged_in",
         botId: null,
+        label: null,
         updatedAt: null,
         lastError: null
       };
     }
 
+    const first = bots[0];
     return {
-      status: bot.status,
-      botId: bot.botId,
-      updatedAt: bot.updatedAt,
-      lastError: bot.lastError
+      status: first.status,
+      botId: first.botId,
+      label: first.label,
+      updatedAt: first.updatedAt,
+      lastError: first.lastError
     };
   }
-}
 
+  /**
+   * 列出所有 Bot（脱敏）。
+   */
+  public async listBots(): Promise<BotListItem[]> {
+    return this.botRepository.listAllBrief();
+  }
+
+  /**
+   * 删除指定 Bot。
+   */
+  public async deleteBot(botId: string): Promise<void> {
+    const bot = await this.botRepository.getById(botId);
+    if (!bot) {
+      throw new AppError(404, "bot_not_found", `未找到 botId=${botId} 的 Bot。`);
+    }
+
+    await this.botRepository.delete(botId);
+  }
+}

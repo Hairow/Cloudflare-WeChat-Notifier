@@ -14,7 +14,9 @@ const createServices = (outcome: "ack" | "retry", options?: {
       createLoginQrcode: vi.fn(),
       getLoginStatus: vi.fn(),
       activateBot: vi.fn(),
-      getBotStatus: vi.fn()
+      getBotStatus: vi.fn(),
+      listBots: vi.fn(),
+      deleteBot: vi.fn()
     },
     delivery: {
       enqueueDelivery: vi.fn(),
