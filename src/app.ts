@@ -874,9 +874,8 @@ export const createApp = (context: AppContext): Hono => {
    * 鉴权：Bearer ADMIN_TOKEN（/api/* 中间件）
    */
   app.post("/api/send", async (c) => {
-    const input = validateIncomingMessage(await parseJsonBody(c.req.raw));
-    // 从请求体中获取 botId，不传则取第一个 ready Bot
     const body = await parseJsonBody(c.req.raw);
+    const input = validateIncomingMessage(body);
     const rawBotId = typeof body === "object" && body !== null && !Array.isArray(body)
       ? ((body as Record<string, unknown>).botId as string | undefined)
       : undefined;
