@@ -249,6 +249,8 @@ export const createApp = (context: AppContext): Hono => {
     await next();
   });
 
+  app.get("/", (c) => c.json({ code: 200, message: "ilink-cloudflare is running." }));
+
   app.get("/healthz", async (c) => {
     const data = await context.services.health.probe();
     return c.json({
