@@ -3,6 +3,12 @@
   "name": "ilink-cloudflare",
   "main": "src/index.ts",
   "compatibility_date": "2026-03-26",
+  // 启用 Workers 可观测性（日志、异常追踪等），部署后可在 Dashboard 查看
+  "observability": {
+    "enabled": true,
+    // head_sampling_rate：请求采样率，1 = 100% 请求的日志都会被收集
+    "head_sampling_rate": 1
+  },
   "vars": {
     "ILINK_BASE_URL": "https://ilinkai.weixin.qq.com",
     "KEEPALIVE_ENABLED": "true",
