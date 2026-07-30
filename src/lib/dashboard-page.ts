@@ -667,12 +667,8 @@ export const renderDashboardPage = (input: {
 
         const body = { text };
         body.dedupeKey = sendDedupe.value.trim() || undefined;
-        // 总是附带 botId：有选择就用选择的，否则自动取第一个 ready Bot
         if (sendBotSelect.value) {
           body.botId = sendBotSelect.value;
-        } else {
-          const ready = cachedBots.find((b) => b.status === "ready");
-          if (ready) body.botId = ready.botId;
         }
 
         try {

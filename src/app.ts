@@ -881,17 +881,10 @@ export const createApp = (context: AppContext): Hono => {
       ? ((body as Record<string, unknown>).botId as string | undefined)
       : undefined;
 
-    let targetBotId: string;
-    if (rawBotId && rawBotId.trim()) {
-      targetBotId = rawBotId.trim();
-    } else {
-      const bots = await context.services.admin.listBots();
-      const readyBot = bots.find((b) => b.status === "ready");
-      if (!readyBot) {
-        throw new AppError(400, "no_bot_available", "没有可用的 Bot，请先在请求体指定 botId，或至少激活一个 Bot。");
-      }
-      targetBotId = readyBot.botId;
+    if (!rawBotId || !rawBotId.trim()) {
+      throw new AppError(400, "missing_bot_id", "请求必须指定 botId。");
     }
+    const targetBotId = rawBotId.trim();
 
     const data = await context.services.delivery.enqueueDelivery(targetBotId, "admin", input);
     return c.json(
