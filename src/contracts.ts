@@ -338,7 +338,7 @@ export interface AdminService {
   /** 激活指定 Bot（调用 getUpdates 获取 context_token） */
   activateBot(botId: string): Promise<ActivateBotResponse>;
   /** 查询指定 Bot 状态，不传 botId 则返回第一个 Ready Bot */
-  getBotStatus(botId?: string): Promise<BotStatusView>;
+  getBotStatus(botId: string): Promise<BotStatusView>;
   /** 列出所有 Bot */
   listBots(): Promise<BotListItem[]>;
   /** 删除指定 Bot */

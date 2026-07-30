@@ -160,44 +160,20 @@ export class DefaultAdminService implements AdminService {
   }
 
   /**
-   * 查询 Bot 状态。
-   * 不传 botId 时返回第一个 Bot 的状态（用于向后兼容）。
+   * 查询指定 Bot 状态。
    */
-  public async getBotStatus(botId?: string): Promise<BotStatusView> {
-    if (botId) {
-      const bot = await this.botRepository.getById(botId);
-      if (!bot) {
-        throw new AppError(404, "bot_not_found", `未找到 botId=${botId} 的 Bot。`);
-      }
-
-      return {
-        status: bot.status,
-        botId: bot.botId,
-        label: bot.label,
-        updatedAt: bot.updatedAt,
-        lastError: bot.lastError
-      };
+  public async getBotStatus(botId: string): Promise<BotStatusView> {
+    const bot = await this.botRepository.getById(botId);
+    if (!bot) {
+      throw new AppError(404, "bot_not_found", `未找到 botId=${botId} 的 Bot。`);
     }
 
-    // 向后兼容：返回第一个 Bot
-    const bots = await this.botRepository.listAllBrief();
-    if (bots.length === 0) {
-      return {
-        status: "not_logged_in",
-        botId: null,
-        label: null,
-        updatedAt: null,
-        lastError: null
-      };
-    }
-
-    const first = bots[0];
     return {
-      status: first.status,
-      botId: first.botId,
-      label: first.label,
-      updatedAt: first.updatedAt,
-      lastError: first.lastError
+      status: bot.status,
+      botId: bot.botId,
+      label: bot.label,
+      updatedAt: bot.updatedAt,
+      lastError: bot.lastError
     };
   }
 

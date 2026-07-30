@@ -190,7 +190,7 @@ describe("app routes", () => {
 
   it("should reject admin routes without bearer token", async () => {
     const app = createApp(createContext());
-    const response = await app.request("http://localhost/admin/bot/status");
+    const response = await app.request("http://localhost/admin/bot/test-bot-id/status");
     const body = (await response.json()) as { code: number; error: string };
 
     expect(response.status).toBe(401);

@@ -243,6 +243,7 @@ export const renderQrcodeLoginPage = (input: {
       const activateBtn = document.getElementById("activate-btn");
       let polling = true;
       let loggedIn = false;
+      let confirmedBotId = null;
 
       const schedulePoll = () => {
         if (polling) window.setTimeout(fetchStatus, 2000);
@@ -270,6 +271,7 @@ export const renderQrcodeLoginPage = (input: {
           }
           if (status === "confirmed") {
             loggedIn = true;
+            confirmedBotId = payload.data.botId;
             activateBtn.disabled = false;
             setStatus("当前状态：登录已确认，可以继续激活。", "success");
             hintBox.textContent = "下一步：先给“微信ClawBot”发一条消息，然后点击“确认后激活”。";
@@ -287,7 +289,7 @@ export const renderQrcodeLoginPage = (input: {
         activateBtn.textContent = "激活中...";
         setStatus("正在尝试激活...", "info");
         try {
-          const response = await fetch("/admin/bot/activate?token=" + encodeURIComponent(adminToken), {
+          const response = await fetch("/admin/bot/" + encodeURIComponent(confirmedBotId) + "/activate?token=" + encodeURIComponent(adminToken), {
             method: "POST"
           });
           const payload = await response.json();

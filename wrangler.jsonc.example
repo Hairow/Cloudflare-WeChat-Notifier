@@ -3,11 +3,13 @@
   "name": "ilink-cloudflare",
   "main": "src/index.ts",
   "compatibility_date": "2026-03-26",
+  // 非敏感变量：直接放在这里。
+  // 敏感凭证（ADMIN_TOKEN / WEBHOOK_SHARED_TOKEN / BOT_STATE_ENC_KEY）——不要放在 vars！
+  // 部署前通过以下命令注入 Secret：
+  //   npx wrangler secret put ADMIN_TOKEN
+  //   npx wrangler secret put WEBHOOK_SHARED_TOKEN
+  //   npx wrangler secret put BOT_STATE_ENC_KEY
   "vars": {
-    // 请替换为实际值
-    "ADMIN_TOKEN": "your-admin-token-here",
-    "WEBHOOK_SHARED_TOKEN": "your-webhook-shared-token-here",
-    "BOT_STATE_ENC_KEY": "your-bot-state-enc-key-here",
     "ILINK_BASE_URL": "https://ilinkai.weixin.qq.com",
     "KEEPALIVE_ENABLED": "true",
     "KEEPALIVE_INTERVAL_HOURS": "24",

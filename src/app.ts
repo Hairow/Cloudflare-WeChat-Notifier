@@ -303,9 +303,12 @@ const parseBatchDeliveryIds = async (request: Request): Promise<string[]> => {
  *
  *   —— Bot 管理（JSON API）——
  *   POST   /admin/bot/login/qrcode                — 创建登录二维码会话
- *   GET    /admin/bot/login/status/:sessionId     — 查询扫码状态
- *   POST   /admin/bot/activate                    — 激活 Bot
- *   GET    /admin/bot/status                      — 查询 Bot 当前状态
+ *   GET    /admin/bot/login/status/:sessionId     — 查询扫码状态（含 botId）
+ *   GET    /admin/bots                            — 列出所有 Bot
+ *   GET    /admin/bot/:botId/status               — 查询指定 Bot 状态
+ *   POST   /admin/bot/:botId/activate             — 激活指定 Bot
+ *   PATCH  /admin/bot/:botId                      — 更新 Bot label
+ *   DELETE /admin/bot/:botId                      — 删除 Bot
  *
  *   —— 投递日志管理（JSON API）——
  *   GET    /admin/deliveries                      — 分页查询投递日志
@@ -732,37 +735,6 @@ export const createApp = (context: AppContext): Hono => {
     return c.json({
       code: 200,
       message: `Bot ${botId} 已删除。`
-    });
-  });
-
-  /**
-   * GET /admin/bot/status
-   * 兼容旧接口：返回第一个 Bot 的状态。
-   * 多 Bot 下推荐使用 GET /admin/bot/:botId/status。
-   */
-  app.get("/admin/bot/status", async (c) => {
-    const data = await context.services.admin.getBotStatus();
-    return c.json({
-      code: 200,
-      data
-    });
-  });
-
-  /**
-   * POST /admin/bot/activate
-   * 兼容旧接口：激活第一个 Bot。
-   * 多 Bot 下推荐使用 POST /admin/bot/:botId/activate。
-   */
-  app.post("/admin/bot/activate", async (c) => {
-    const bots = await context.services.admin.listBots();
-    if (bots.length === 0) {
-      throw new AppError(404, "bot_not_found", "当前没有已登录的 Bot。");
-    }
-
-    const data = await context.services.admin.activateBot(bots[0].botId);
-    return c.json({
-      code: 200,
-      data
     });
   });
 
