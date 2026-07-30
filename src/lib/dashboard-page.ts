@@ -227,6 +227,12 @@ export const renderDashboardPage = (input: {
         color: var(--muted);
         font-weight: 700;
       }
+      .hint {
+        font-weight: 400;
+        font-size: 11px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
       input,
       textarea,
       select {
@@ -389,8 +395,9 @@ export const renderDashboardPage = (input: {
                 <textarea id="send-text" placeholder="输入一条测试消息，例如：Cloudflare deploy succeeded."></textarea>
               </label>
               <label>
-                幂等键（可选）
+                幂等键 dedupeKey（可选）
                 <input id="send-dedupe" placeholder="例如 deploy-20260326-1" />
+                <span class="hint">同一 Bot + 同一 dedupeKey 的重复请求会被去重，只投递一次。留空则每次都会创建新投递，不做去重。</span>
               </label>
               <div class="section-actions">
                 <button id="send-btn">发送测试消息</button>
