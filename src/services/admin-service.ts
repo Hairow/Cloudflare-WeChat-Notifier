@@ -1,4 +1,4 @@
-import type { ActivateBotResponse, BotListItem, BotStatusView, CreateLoginQrcodeInput, LoginQrcodeResponse, LoginSession, LoginStatusResponse } from "../contracts";
+import type { ActivateBotResponse, AdminService, BotListItem, BotStatusView, CreateLoginQrcodeInput, LoginQrcodeResponse, LoginSession, LoginStatusResponse } from "../contracts";
 import { IlinkClient } from "../ilink/client";
 import { AppError } from "../lib/errors";
 import { createSessionId } from "../lib/id";
@@ -8,12 +8,12 @@ import { LoginSessionRepository } from "../storage/login-session-repository";
 
 const LOGIN_EXPIRES_IN_MS = 5 * 60 * 1000;
 
-export class DefaultAdminService {
+export class DefaultAdminService implements AdminService {
   public constructor(
     private readonly ilinkClient: IlinkClient,
     private readonly botRepository: BotStateRepository,
     private readonly loginSessionRepository: LoginSessionRepository
-  ) {}
+  ) { }
 
   /**
    * 创建登录二维码会话。

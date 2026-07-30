@@ -1,13 +1,13 @@
-import type { BotStatus, HealthResponse } from "../contracts";
+import type { BotStatus, HealthResponse, HealthService } from "../contracts";
 import { nowIso } from "../lib/time";
 import { BotStateRepository } from "../storage/bot-state-repository";
 
-export class DefaultHealthService {
+export class DefaultHealthService implements HealthService {
   public constructor(
     private readonly db: D1Database,
     private readonly queue: Queue,
     private readonly botRepository: BotStateRepository
-  ) {}
+  ) { }
 
   public async probe(): Promise<HealthResponse> {
     let database: HealthResponse["database"] = "ok";

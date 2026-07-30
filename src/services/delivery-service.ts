@@ -5,6 +5,7 @@ import type {
   DeliveryListQuery,
   DeliveryListResult,
   DeliveryLog,
+  DeliveryService,
   EnqueueDeliveryResult,
   IncomingMessagePayload,
   KeepaliveConfig,
@@ -25,7 +26,7 @@ const RETRYABLE_ATTEMPTS = 3;
 const MS_PER_HOUR = 60 * 60 * 1000;
 const REPLAYABLE_STATUS_MESSAGE = "仅支持重发 failed 状态的投递记录。";
 
-export class DefaultDeliveryService {
+export class DefaultDeliveryService implements DeliveryService {
   public constructor(
     private readonly queue: Queue<{ deliveryId: string }>,
     private readonly deliveryLogRepository: DeliveryLogRepository,
