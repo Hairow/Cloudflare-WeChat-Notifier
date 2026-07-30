@@ -379,7 +379,7 @@ export const renderDashboardPage = (input: {
               <label>
                 目标 Bot
                 <select id="send-bot-select">
-                  <option value="">（自动选择第一个 ready Bot）</option>
+                  <option value="">请选择 Bot</option>
                 </select>
               </label>
               <label>
@@ -553,7 +553,7 @@ export const renderDashboardPage = (input: {
 
           // 刷新发送测试的 Bot 下拉框
           const prevSelected = sendBotSelect.value;
-          sendBotSelect.innerHTML = '<option value="">（自动选择第一个 ready Bot）</option>'
+          sendBotSelect.innerHTML = '<option value="">请选择 Bot</option>'
             + cachedBots
               .map((b) => '<option value="' + escapeHtml(b.botId) + '"'
                 + (b.status === "ready" ? "" : ' class="not-ready"')
