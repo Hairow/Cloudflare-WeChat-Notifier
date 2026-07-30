@@ -613,7 +613,7 @@ export const renderDashboardPage = (input: {
         const template = [
           "curl -X POST " + origin + "/webhook/" + botId + "/your-source \\\\",
           '  -H "Content-Type: application/json" \\\\',
-          '  -H "X-Webhook-Token: ' + escapedWebhookToken + '" \\\\',
+          '  -H "X-Webhook-Token: ${escapedWebhookToken}" \\\\',
           \`  -d '{"text": "Hello World"}'\`,
         ].join("\\n");
 
