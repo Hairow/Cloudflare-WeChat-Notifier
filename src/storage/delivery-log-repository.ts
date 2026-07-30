@@ -9,7 +9,7 @@ interface DeliveryLogRow {
   trace_id: string | null;
   dedupe_key: string | null;
   text: string;
-  meta_json: string | null;
+  meta: string | null;
   status: DeliveryStatus;
   attempts: number;
   error: string | null;
@@ -80,7 +80,7 @@ export class DeliveryLogRepository {
               trace_id,
               dedupe_key,
               text,
-              meta_json,
+              meta,
               status,
               attempts,
               error,
@@ -140,7 +140,7 @@ export class DeliveryLogRepository {
             trace_id,
             dedupe_key,
             text,
-            meta_json,
+            meta,
             status,
             attempts,
             error,
@@ -169,7 +169,7 @@ export class DeliveryLogRepository {
             trace_id,
             dedupe_key,
             text,
-            meta_json,
+            meta,
             status,
             attempts,
             error,
@@ -246,7 +246,7 @@ export class DeliveryLogRepository {
             trace_id,
             dedupe_key,
             text,
-            meta_json,
+            meta,
             status,
             attempts,
             error,
@@ -288,7 +288,7 @@ export class DeliveryLogRepository {
             trace_id,
             dedupe_key,
             text,
-            meta_json,
+            meta,
             status,
             attempts,
             error,
@@ -334,7 +334,7 @@ export class DeliveryLogRepository {
             trace_id,
             dedupe_key,
             text,
-            meta_json,
+            meta,
             status,
             attempts,
             error,
@@ -378,7 +378,7 @@ export class DeliveryLogRepository {
       traceId: row.trace_id,
       dedupeKey: row.dedupe_key,
       text: row.text,
-      meta: parseMeta(row.meta_json),
+      meta: parseMeta(row.meta),
       status: row.status,
       attempts: row.attempts,
       error: row.error,
