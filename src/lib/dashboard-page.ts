@@ -735,12 +735,12 @@ export const renderDashboardPage = (input: {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ label: input.value.trim() })
               });
+              await loadBots();
             } catch (err) {
               // 静默处理，刷新后恢复
             }
           }
           isEditingLabel = false;
-          await loadBots();
         };
 
         input.addEventListener("blur", () => finishEdit(true));
