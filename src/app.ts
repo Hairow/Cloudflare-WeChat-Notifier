@@ -511,7 +511,7 @@ export const createApp = (context: AppContext): Hono => {
       renderDashboardPage({
         adminToken: token,
         webhookToken: context.config.webhookSharedToken,
-        refreshSeconds: parseRefreshSeconds(c.req.raw, 5),
+        refreshSeconds: parseRefreshSeconds(c.req.raw, 30),
         logsLimit
       }),
       {
@@ -599,7 +599,7 @@ export const createApp = (context: AppContext): Hono => {
         initialSource: filters.source,
         initialLimit: filters.limit,
         initialPage: filters.page,
-        initialRefreshSeconds: parseRefreshSeconds(c.req.raw, 5)
+        initialRefreshSeconds: parseRefreshSeconds(c.req.raw, 30)
       }),
       {
         headers: {
