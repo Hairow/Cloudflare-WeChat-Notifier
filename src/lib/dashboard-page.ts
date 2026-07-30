@@ -530,6 +530,9 @@ export const renderDashboardPage = (input: {
                   + (showActivate
                     ? '<button class="small activate-bot-btn" data-bot-id="' + escapeHtml(bot.botId) + '">激活</button>'
                     : '<button class="small secondary" disabled>激活</button>')
+                  + (bot.status === "ready"
+                    ? '<button class="small copy-template-btn" data-bot-id="' + escapeHtml(bot.botId) + '">复制请求</button>'
+                    : '')
                   + '<button class="small danger delete-bot-btn" data-bot-id="' + escapeHtml(bot.botId) + '">删除</button>'
                   + '</div>'
                   + '</div>'
@@ -545,6 +548,11 @@ export const renderDashboardPage = (input: {
             // 绑定删除按钮
             botCards.querySelectorAll(".delete-bot-btn").forEach((btn) => {
               btn.addEventListener("click", () => deleteBot(btn.dataset.botId));
+            });
+
+            // 绑定复制请求模版按钮
+            botCards.querySelectorAll(".copy-template-btn").forEach((btn) => {
+              btn.addEventListener("click", () => copyCurlTemplate(btn.dataset.botId));
             });
 
             const readyCount = cachedBots.filter((b) => b.status === "ready").length;
@@ -594,6 +602,42 @@ export const renderDashboardPage = (input: {
           // 静默处理，刷新列表后会显示最新状态
         } finally {
           await loadBots();
+        }
+      };
+
+      // ----- 复制请求模版 -----
+      const copyCurlTemplate = async (botId) => {
+        const origin = window.location.origin;
+        const template = [
+          "curl -X POST " + origin + "/webhook/" + botId + "/your-source \\\\",
+          '  -H "Content-Type: application/json" \\\\',
+          '  -H "X-Webhook-Token: <WEBHOOK_SHARED_TOKEN>" \\\\',
+          "  -d '{\"text\": \"Hello World\"}'",
+        ].join("\\n");
+
+        try {
+          await navigator.clipboard.writeText(template);
+        } catch {
+          // 降级方案
+          const ta = document.createElement("textarea");
+          ta.value = template;
+          ta.style.position = "fixed";
+          ta.style.left = "-9999px";
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+        }
+
+        const btn = botCards.querySelector('.copy-template-btn[data-bot-id="' + CSS.escape(botId) + '"]');
+        if (btn) {
+          const original = btn.textContent;
+          btn.textContent = "已复制!";
+          btn.style.background = "#22c55e";
+          setTimeout(() => {
+            btn.textContent = original;
+            btn.style.background = "";
+          }, 1500);
         }
       };
 
