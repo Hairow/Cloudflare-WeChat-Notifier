@@ -612,7 +612,7 @@ export const renderDashboardPage = (input: {
           "curl -X POST " + origin + "/webhook/" + botId + "/your-source \\\\",
           '  -H "Content-Type: application/json" \\\\',
           '  -H "X-Webhook-Token: <WEBHOOK_SHARED_TOKEN>" \\\\',
-          "  -d '{\"text\": \"Hello World\"}'",
+          \`  -d '{"text": "Hello World"}'\`,
         ].join("\\n");
 
         try {
