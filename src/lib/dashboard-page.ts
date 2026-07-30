@@ -575,6 +575,10 @@ export const renderDashboardPage = (input: {
 
       // ----- 激活指定 Bot -----
       const activateSpecificBot = async (botId) => {
+        if (!botId) {
+          alert("botId 缺失，无法激活。请先扫码登录。");
+          return;
+        }
         const btn = botCards.querySelector('.activate-bot-btn[data-bot-id="' + CSS.escape(botId) + '"]');
         if (btn) {
           btn.disabled = true;
@@ -663,8 +667,12 @@ export const renderDashboardPage = (input: {
 
         const body = { text };
         body.dedupeKey = sendDedupe.value.trim() || undefined;
+        // 总是附带 botId：有选择就用选择的，否则自动取第一个 ready Bot
         if (sendBotSelect.value) {
           body.botId = sendBotSelect.value;
+        } else {
+          const ready = cachedBots.find((b) => b.status === "ready");
+          if (ready) body.botId = ready.botId;
         }
 
         try {

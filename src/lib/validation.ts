@@ -24,8 +24,8 @@ export const validateSource = (source: string): string => {
  * botId 必须是非空字符串，仅支持字母、数字、下划线、中划线和 @，长度 1-128。
  */
 export const validateBotId = (botId: string): string => {
-  if (!botId || !/^[A-Za-z0-9_@-]{1,128}$/.test(botId)) {
-    throw new AppError(400, "invalid_bot_id", "botId 仅支持字母、数字、下划线、中划线和 @，长度 1-128。");
+  if (!botId || !/^[A-Za-z0-9_@.-]{1,128}$/.test(botId)) {
+    throw new AppError(400, "invalid_bot_id", "botId 仅支持字母、数字、下划线、中划线、点号和 @，长度 1-128。");
   }
 
   return botId;
