@@ -16,7 +16,8 @@ const createServices = (outcome: "ack" | "retry", options?: {
       activateBot: vi.fn(),
       getBotStatus: vi.fn(),
       listBots: vi.fn(),
-      deleteBot: vi.fn()
+      deleteBot: vi.fn(),
+      updateBotLabel: vi.fn()
     },
     delivery: {
       enqueueDelivery: vi.fn(),

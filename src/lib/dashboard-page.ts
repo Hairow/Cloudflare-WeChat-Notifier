@@ -188,6 +188,27 @@ export const renderDashboardPage = (input: {
       }
       .bot-card-header > div { min-width: 0; }
       .bot-label { font-size: 13px; color: var(--muted); }
+      .label-text {
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        transition: border-color 160ms ease, background 160ms ease;
+        display: inline-block;
+        max-width: 100%;
+        word-break: break-all;
+      }
+      .label-text:hover { background: #f1f5f9; border-color: #cbd5e1; }
+      .label-input {
+        font: inherit;
+        font-size: 13px;
+        padding: 2px 6px;
+        border: 1px solid var(--accent);
+        border-radius: 6px;
+        outline: none;
+        width: 100%;
+        box-sizing: border-box;
+      }
       .bot-card-body {
         display: grid;
         grid-template-columns: 1fr auto;
@@ -526,7 +547,7 @@ export const renderDashboardPage = (input: {
                   + '<div class="bot-card-header">'
                   + '<div>'
                   + '<h3><span class="status-dot ' + statusDotClass(bot.status) + '"></span>' + escapeHtml(statusLabel(bot.status)) + '</h3>'
-                  + '<div class="bot-label">' + (bot.label ? escapeHtml(bot.label) : '<em>未命名</em>') + '</div>'
+                  + '<div class="bot-label"><span class="label-text" data-bot-id="' + escapeHtml(bot.botId) + '" title="点击编辑">' + (bot.label ? escapeHtml(bot.label) : '<em>未命名</em>') + '</span></div>'
                   + '</div>'
                   + '</div>'
                   + '<div class="bot-card-body">'
@@ -562,6 +583,11 @@ export const renderDashboardPage = (input: {
             // 绑定复制请求模版按钮
             botCards.querySelectorAll(".copy-template-btn").forEach((btn) => {
               btn.addEventListener("click", () => copyCurlTemplate(btn.dataset.botId));
+            });
+
+            // 绑定 label 行内编辑
+            botCards.querySelectorAll(".label-text").forEach((span) => {
+              span.addEventListener("click", () => editLabel(span));
             });
 
             const readyCount = cachedBots.filter((b) => b.status === "ready").length;
@@ -671,6 +697,46 @@ export const renderDashboardPage = (input: {
         }
       };
 
+      // ----- label 行内编辑 -----
+      let isEditingLabel = false;
+      const editLabel = (span) => {
+        if (span.querySelector("input")) return; // 已在编辑中
+        isEditingLabel = true;
+        const botId = span.dataset.botId;
+        const originalLabel = span.textContent;
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "label-input";
+        input.value = originalLabel === "未命名" ? "" : originalLabel;
+        input.placeholder = "输入名称...";
+
+        const finishEdit = async (save) => {
+          if (save && input.value.trim() && input.value.trim() !== originalLabel) {
+            try {
+              await fetch("/admin/bot/" + encodeURIComponent(botId) + "?token=" + encodeURIComponent(adminToken), {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ label: input.value.trim() })
+              });
+            } catch (err) {
+              // 静默处理，刷新后恢复
+            }
+          }
+          isEditingLabel = false;
+          await loadBots();
+        };
+
+        input.addEventListener("blur", () => finishEdit(true));
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") { input.blur(); }
+          if (e.key === "Escape") { input.value = originalLabel === "未命名" ? "" : originalLabel; finishEdit(false); }
+        });
+
+        span.replaceChildren(input);
+        input.focus();
+        input.select();
+      };
+
       // ----- 日志加载 -----
       const loadRecentLogs = async () => {
         try {
@@ -758,7 +824,9 @@ export const renderDashboardPage = (input: {
 
       // ----- 自动刷新 -----
       const scheduleRefresh = () => window.setTimeout(async () => {
-        await Promise.all([loadBots(), loadRecentLogs()]);
+        if (!isEditingLabel) {
+          await Promise.all([loadBots(), loadRecentLogs()]);
+        }
         scheduleRefresh();
       }, refreshSeconds * 1000);
 

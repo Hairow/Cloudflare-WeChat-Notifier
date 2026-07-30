@@ -39,7 +39,8 @@ const createServices = (): AppServices => ({
         lastError: null
       }
     ]),
-    deleteBot: vi.fn().mockResolvedValue(undefined)
+    deleteBot: vi.fn().mockResolvedValue(undefined),
+    updateBotLabel: vi.fn().mockResolvedValue(undefined)
   },
   delivery: {
     enqueueDelivery: vi.fn().mockResolvedValue({

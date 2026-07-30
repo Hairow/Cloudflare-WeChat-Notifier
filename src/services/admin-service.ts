@@ -219,4 +219,11 @@ export class DefaultAdminService {
 
     await this.botRepository.delete(botId);
   }
+
+  /**
+   * 更新指定 Bot 的 label（别名/备注）。
+   */
+  public async updateBotLabel(botId: string, label: string): Promise<void> {
+    await this.botRepository.updateLabel(botId, label);
+  }
 }

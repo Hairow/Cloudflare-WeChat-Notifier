@@ -343,6 +343,8 @@ export interface AdminService {
   listBots(): Promise<BotListItem[]>;
   /** 删除指定 Bot */
   deleteBot(botId: string): Promise<void>;
+  /** 更新指定 Bot 的 label */
+  updateBotLabel(botId: string, label: string): Promise<void>;
 }
 
 /** 投递服务：消息入队、队列消费、日志管理 */

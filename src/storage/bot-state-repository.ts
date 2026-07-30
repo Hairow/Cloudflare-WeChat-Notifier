@@ -195,6 +195,23 @@ export class BotStateRepository {
   }
 
   /**
+   * 更新指定 Bot 的 label（别名/备注）。
+   * Bot 不存在时静默忽略。
+   */
+  public async updateLabel(botId: string, label: string): Promise<void> {
+    const current = await this.getById(botId);
+    if (!current) {
+      return;
+    }
+
+    await this.upsert({
+      ...current,
+      label,
+      updatedAt: nowIso()
+    });
+  }
+
+  /**
    * 删除指定 Bot。
    */
   public async delete(botId: string): Promise<void> {

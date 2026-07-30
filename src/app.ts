@@ -697,6 +697,31 @@ export const createApp = (context: AppContext): Hono => {
   });
 
   /**
+   * PATCH /admin/bot/:botId
+   * 更新指定 Bot 的 label（别名/备注）。
+   *
+   * 请求体：
+   *   { "label": "新的名称" }
+   */
+  app.patch("/admin/bot/:botId", async (c) => {
+    const botId = c.req.param("botId");
+    validateBotId(botId);
+    const body = await parseJsonBody(c.req.raw);
+    const label =
+      typeof body === "object" && body !== null && !Array.isArray(body)
+        ? ((body as Record<string, unknown>).label as string | undefined)
+        : undefined;
+    if (!label || !label.trim()) {
+      throw new AppError(400, "missing_label", "label 不能为空。");
+    }
+    await context.services.admin.updateBotLabel(botId, label.trim());
+    return c.json({
+      code: 200,
+      message: "Bot label 已更新。"
+    });
+  });
+
+  /**
    * DELETE /admin/bot/:botId
    * 删除指定 Bot。
    */
