@@ -199,6 +199,17 @@ export const renderDashboardPage = (input: {
         word-break: break-all;
       }
       .label-text:hover { background: #f1f5f9; border-color: #cbd5e1; }
+      .edit-icon {
+        display: inline-block;
+        font-size: 12px;
+        color: #94a3b8;
+        cursor: pointer;
+        margin-left: 4px;
+        vertical-align: middle;
+        transition: color 160ms ease;
+        user-select: none;
+      }
+      .edit-icon:hover { color: var(--accent); }
       .label-input {
         font: inherit;
         font-size: 13px;
@@ -547,7 +558,7 @@ export const renderDashboardPage = (input: {
                   + '<div class="bot-card-header">'
                   + '<div>'
                   + '<h3><span class="status-dot ' + statusDotClass(bot.status) + '"></span>' + escapeHtml(statusLabel(bot.status)) + '</h3>'
-                  + '<div class="bot-label"><span class="label-text" data-bot-id="' + escapeHtml(bot.botId) + '" title="点击编辑">' + (bot.label ? escapeHtml(bot.label) : '<em>未命名</em>') + '</span></div>'
+                  + '<div class="bot-label"><span class="label-text" data-bot-id="' + escapeHtml(bot.botId) + '" title="点击编辑">' + (bot.label ? escapeHtml(bot.label) : '<em>未命名</em>') + '</span><span class="edit-icon" data-bot-id="' + escapeHtml(bot.botId) + '" title="编辑名称">✎</span></div>'
                   + '</div>'
                   + '</div>'
                   + '<div class="bot-card-body">'
@@ -588,6 +599,12 @@ export const renderDashboardPage = (input: {
             // 绑定 label 行内编辑
             botCards.querySelectorAll(".label-text").forEach((span) => {
               span.addEventListener("click", () => editLabel(span));
+            });
+            botCards.querySelectorAll(".edit-icon").forEach((icon) => {
+              icon.addEventListener("click", () => {
+                const span = icon.closest(".bot-label").querySelector(".label-text");
+                if (span) editLabel(span);
+              });
             });
 
             const readyCount = cachedBots.filter((b) => b.status === "ready").length;
