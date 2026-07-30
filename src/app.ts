@@ -510,6 +510,7 @@ export const createApp = (context: AppContext): Hono => {
     return new Response(
       renderDashboardPage({
         adminToken: token,
+        webhookToken: context.config.webhookSharedToken,
         refreshSeconds: parseRefreshSeconds(c.req.raw, 5),
         logsLimit
       }),

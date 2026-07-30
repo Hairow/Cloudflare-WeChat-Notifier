@@ -8,10 +8,12 @@ const escapeHtml = (input: string): string =>
 
 export const renderDashboardPage = (input: {
   adminToken: string;
+  webhookToken: string;
   refreshSeconds: number;
   logsLimit: number;
 }): string => {
   const escapedToken = escapeHtml(input.adminToken);
+  const escapedWebhookToken = escapeHtml(input.webhookToken);
 
   return `<!doctype html>
 <html lang="zh-CN">
@@ -611,7 +613,7 @@ export const renderDashboardPage = (input: {
         const template = [
           "curl -X POST " + origin + "/webhook/" + botId + "/your-source \\\\",
           '  -H "Content-Type: application/json" \\\\',
-          '  -H "X-Webhook-Token: <WEBHOOK_SHARED_TOKEN>" \\\\',
+          '  -H "X-Webhook-Token: ' + escapedWebhookToken + '" \\\\',
           \`  -d '{"text": "Hello World"}'\`,
         ].join("\\n");
 
