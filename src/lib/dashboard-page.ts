@@ -31,14 +31,13 @@ export const renderDashboardPage = (input: {
         --accent-soft: #dff5f2;
         --danger-soft: #fee2e2;
         --danger: #991b1b;
+        --danger-hover: #7f1d1d;
         --success-soft: #dcfce7;
         --success: #166534;
         --shadow: 0 24px 80px rgba(24, 39, 75, 0.12);
       }
       * { box-sizing: border-box; }
-      html {
-        overflow-x: hidden;
-      }
+      html { overflow-x: hidden; }
       body {
         margin: 0;
         font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -74,27 +73,11 @@ export const renderDashboardPage = (input: {
         gap: 18px;
         flex-wrap: wrap;
       }
-      .hero > div:first-child,
-      .section-head > div:first-child {
-        flex: 1 1 420px;
-        min-width: 0;
-      }
-      h1 {
-        margin: 0 0 8px;
-        font-size: clamp(28px, 4vw, 34px);
-        line-height: 1.15;
-      }
-      h2 {
-        margin: 0;
-        font-size: 24px;
-        line-height: 1.25;
-      }
-      p {
-        margin: 0;
-        color: var(--muted);
-        line-height: 1.7;
-        overflow-wrap: anywhere;
-      }
+      .hero > div:first-child { flex: 1 1 420px; min-width: 0; }
+      h1 { margin: 0 0 8px; font-size: clamp(28px, 4vw, 34px); line-height: 1.15; }
+      h2 { margin: 0; font-size: 22px; line-height: 1.25; }
+      h3 { margin: 0; font-size: 15px; font-weight: 700; line-height: 1.3; }
+      p { margin: 0; color: var(--muted); line-height: 1.7; overflow-wrap: anywhere; }
       .pill {
         display: inline-flex;
         align-items: center;
@@ -109,14 +92,9 @@ export const renderDashboardPage = (input: {
       .hero-actions,
       .section-actions {
         display: flex;
-        gap: 12px;
+        gap: 10px;
         flex-wrap: wrap;
         align-items: center;
-        min-width: 0;
-      }
-      .hero-actions > *,
-      .section-actions > * {
-        flex: 0 0 auto;
       }
       button,
       a.button {
@@ -126,19 +104,17 @@ export const renderDashboardPage = (input: {
         justify-content: center;
         border: 0;
         border-radius: 999px;
-        padding: 12px 18px;
-        min-height: 46px;
+        padding: 10px 16px;
+        min-height: 42px;
         background: var(--text);
         color: #fff;
         text-decoration: none;
         cursor: pointer;
         font-weight: 700;
-        font-size: 14px;
+        font-size: 13px;
         line-height: 1.2;
         text-align: center;
         white-space: nowrap;
-        max-width: 100%;
-        touch-action: manipulation;
         transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease;
       }
       button.secondary,
@@ -147,6 +123,15 @@ export const renderDashboardPage = (input: {
         color: var(--text);
         border: 1px solid var(--line);
       }
+      button.danger {
+        background: transparent;
+        color: var(--danger);
+        border: 1px solid var(--danger);
+      }
+      button.danger:hover {
+        background: var(--danger-soft);
+      }
+      button.small { padding: 6px 12px; min-height: 32px; font-size: 12px; }
       button:not(:disabled):hover,
       a.button:hover {
         box-shadow: 0 10px 22px rgba(22, 32, 47, 0.14);
@@ -175,95 +160,64 @@ export const renderDashboardPage = (input: {
         align-items: flex-start;
         flex-wrap: wrap;
       }
-      .metrics {
+      .section-head > div:first-child { flex: 1 1 300px; min-width: 0; }
+      /* Bot 卡片 */
+      .bot-cards {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 14px;
+        gap: 12px;
       }
-      .metric {
-        padding: 16px 18px;
+      .bot-card {
+        padding: 18px;
         border-radius: 18px;
-        background: #f8fafc;
         border: 1px solid var(--line);
-        min-width: 0;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        transition: border-color 160ms ease, box-shadow 160ms ease;
       }
-      .metric strong {
-        display: block;
-        margin-bottom: 8px;
+      .bot-card:hover {
+        border-color: #aebdcd;
+        box-shadow: 0 8px 20px rgba(24, 39, 75, 0.06);
+      }
+      .bot-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .bot-card-header > div { min-width: 0; }
+      .bot-label { font-size: 13px; color: var(--muted); }
+      .bot-card-body {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 12px;
+        align-items: end;
+      }
+      .bot-meta {
+        display: grid;
+        gap: 6px;
         font-size: 13px;
         color: var(--muted);
       }
-      .metric span {
-        font-size: 20px;
-        font-weight: 800;
-        word-break: break-word;
-      }
-      .status-banner {
-        padding: 16px 18px;
-        border-radius: 18px;
-        border: 1px solid var(--line);
-        background: #f8fafc;
-        overflow-wrap: anywhere;
-      }
-      .status-banner strong {
-        display: block;
-        margin-bottom: 8px;
-      }
-      .status-banner.success {
-        background: var(--success-soft);
-        color: var(--success);
-        border-color: #bbf7d0;
-      }
-      .status-banner.warning {
-        background: #fef3c7;
-        color: #92400e;
-        border-color: #fde68a;
-      }
-      .status-banner.error {
-        background: var(--danger-soft);
-        color: var(--danger);
-        border-color: #fecaca;
-      }
-      .quick-links {
-        display: grid;
-        gap: 12px;
-      }
-      .quick-link {
+      .bot-meta code { font-size: 12px; }
+      .bot-actions {
         display: flex;
-        justify-content: space-between;
-        gap: 12px;
-        align-items: center;
-        padding: 15px 16px;
-        border-radius: 18px;
-        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-        border: 1px solid var(--line);
-        text-decoration: none;
-        color: inherit;
-        min-width: 0;
-        transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+        gap: 8px;
+        flex-wrap: wrap;
       }
-      .quick-link > div {
-        min-width: 0;
+      .status-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 6px;
+        vertical-align: middle;
       }
-      .quick-link small {
-        color: var(--muted);
-        display: block;
-        margin-top: 4px;
-        overflow-wrap: anywhere;
-      }
-      .quick-link span {
-        flex: 0 0 auto;
-        font-weight: 800;
-      }
-      .quick-link:hover {
-        border-color: #aebdcd;
-        box-shadow: 0 10px 26px rgba(24, 39, 75, 0.08);
-        transform: translateY(-1px);
-      }
-      .form-grid {
-        display: grid;
-        gap: 14px;
-      }
+      .status-dot.ready { background: #22c55e; }
+      .status-dot.logged_in,
+      .status-dot.needs_activation { background: #f59e0b; }
+      .status-dot.needs_login,
+      .status-dot.error { background: #ef4444; }
+      .form-grid { display: grid; gap: 14px; }
       label {
         display: grid;
         gap: 8px;
@@ -283,14 +237,8 @@ export const renderDashboardPage = (input: {
         font: inherit;
         min-width: 0;
       }
-      textarea {
-        min-height: 140px;
-        resize: vertical;
-      }
-      .form-note {
-        font-size: 13px;
-        color: var(--muted);
-      }
+      textarea { min-height: 120px; resize: vertical; }
+      .form-note { font-size: 13px; color: var(--muted); }
       .message-box {
         padding: 14px 16px;
         border-radius: 16px;
@@ -316,112 +264,70 @@ export const renderDashboardPage = (input: {
       }
       table {
         width: 100%;
-        min-width: 760px;
+        min-width: 800px;
         border-collapse: collapse;
       }
       th,
       td {
-        padding: 13px 10px;
+        padding: 12px 9px;
         text-align: left;
         border-bottom: 1px solid #edf1f7;
         vertical-align: top;
-        font-size: 14px;
+        font-size: 13px;
       }
-      th {
-        color: var(--muted);
-        font-weight: 700;
-        white-space: nowrap;
-      }
-      td {
-        overflow-wrap: anywhere;
-      }
-      tbody tr {
-        transition: background 160ms ease;
-      }
-      tbody tr:hover {
-        background: #f8fafc;
-      }
+      th { color: var(--muted); font-weight: 700; white-space: nowrap; }
+      td { overflow-wrap: anywhere; }
+      tbody tr { transition: background 160ms ease; }
+      tbody tr:hover { background: #f8fafc; }
       .badge {
         display: inline-flex;
-        padding: 6px 10px;
+        padding: 5px 9px;
         border-radius: 999px;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 800;
       }
       .badge.queued { background: #e0f2fe; color: #075985; }
       .badge.retrying { background: #fef3c7; color: #92400e; }
       .badge.delivered { background: #dcfce7; color: #166534; }
       .badge.failed { background: #fee2e2; color: #991b1b; }
-      .tiny {
-        font-size: 13px;
-        color: var(--muted);
-      }
-      .mono {
-        font-family: Consolas, "SFMono-Regular", monospace;
-      }
+      .tiny { font-size: 12px; color: var(--muted); }
       code {
         font-family: Consolas, "SFMono-Regular", monospace;
         background: #f4f7fb;
         border-radius: 8px;
         padding: 2px 6px;
+        font-size: 12px;
       }
-      button:disabled {
-        cursor: not-allowed;
-        opacity: 0.58;
-      }
+      button:disabled { cursor: not-allowed; opacity: 0.58; }
       button:focus-visible,
       a.button:focus-visible,
-      .quick-link:focus-visible,
       input:focus-visible,
       textarea:focus-visible,
       select:focus-visible {
         outline: 3px solid rgba(15, 118, 110, 0.28);
         outline-offset: 2px;
       }
-      @media (max-width: 1100px) {
-        .grid {
-          grid-template-columns: 1fr;
-        }
+      .empty-state {
+        padding: 32px 18px;
+        text-align: center;
+        color: var(--muted);
       }
+      .empty-state strong { display: block; margin-bottom: 8px; font-size: 16px; color: var(--text); }
+      @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }
       @media (max-width: 720px) {
-        .stack {
-          gap: 14px;
-        }
-        .card {
-          border-radius: 20px;
-        }
-        .hero {
-          gap: 16px;
-        }
-        .metrics {
-          grid-template-columns: 1fr;
-        }
+        .stack { gap: 14px; }
+        .card { border-radius: 20px; }
+        .hero { gap: 16px; }
         .hero-actions,
-        .section-actions {
-          width: 100%;
-        }
+        .section-actions { width: 100%; }
         .hero-actions > *,
-        .section-actions > * {
-          flex: 1 1 100%;
-        }
-        .quick-link {
-          align-items: flex-start;
-        }
-        .quick-link span {
-          padding-top: 2px;
-        }
+        .section-actions > * { flex: 1 1 100%; }
+        .bot-card-body { grid-template-columns: 1fr; }
       }
       @media (prefers-reduced-motion: reduce) {
-        *,
-        *::before,
-        *::after {
-          transition: none !important;
-        }
+        *, *::before, *::after { transition: none !important; }
         button:not(:disabled):hover,
-        a.button:hover,
-        .quick-link:hover {
-          transform: none;
-        }
+        a.button:hover { transform: none; }
       }
     </style>
   </head>
@@ -431,80 +337,51 @@ export const renderDashboardPage = (input: {
         <section class="card hero">
           <div>
             <h1>iLink 管理总览</h1>
-            <p>把 bot 登录、激活、测试发信和最近日志集中在一个页面里，适合部署后做日常巡检和快速操作。</p>
-            <div class="pill" id="hero-pill" aria-live="polite">正在加载 bot 状态...</div>
+            <p>管理所有 Bot、发送测试消息、查看投递日志。</p>
+            <div class="pill" id="hero-pill" aria-live="polite">正在加载...</div>
           </div>
           <div class="hero-actions">
             <button id="refresh-all-btn">刷新总览</button>
-            <a class="button secondary" href="/admin/bot/login/qrcode/page?token=${escapedToken}">打开二维码页</a>
-            <a class="button secondary" href="/admin/deliveries/page?token=${escapedToken}">打开日志中心</a>
+            <a class="button secondary" href="/admin/bot/login/qrcode/page?token=${escapedToken}">添加 Bot（扫码）</a>
+            <a class="button secondary" href="/admin/deliveries/page?token=${escapedToken}">日志中心</a>
           </div>
         </section>
 
         <section class="grid">
+          <!-- ========== Bot 卡片列表 ========== -->
           <section class="card section">
             <div class="section-head">
               <div>
-                <h2>Bot 状态</h2>
-                <p>自动轮询当前 bot 登录态，并提供激活与扫码入口。</p>
+                <h2>Bot 列表</h2>
+                <p>所有已登录 Bot，可逐个激活或删除。</p>
               </div>
               <div class="section-actions">
-                <button class="secondary" id="refresh-status-btn">刷新状态</button>
-                <button id="activate-btn">尝试激活</button>
+                <button class="secondary" id="refresh-bots-btn">刷新列表</button>
               </div>
             </div>
-
-            <div class="metrics">
-              <div class="metric">
-                <strong>当前状态</strong>
-                <span id="bot-status-value">-</span>
-              </div>
-              <div class="metric">
-                <strong>Bot ID</strong>
-                <span id="bot-id-value">-</span>
-              </div>
-              <div class="metric">
-                <strong>最后更新时间</strong>
-                <span id="bot-updated-value">-</span>
-              </div>
-              <div class="metric">
-                <strong>自动刷新</strong>
-                <span>${input.refreshSeconds} 秒</span>
-              </div>
+            <div class="bot-cards" id="bot-cards" aria-live="polite">
+              <div class="empty-state"><strong>暂无 Bot</strong><p>请点击"添加 Bot（扫码）"完成登录。</p></div>
             </div>
-
-            <div class="status-banner" id="bot-banner" aria-live="polite">
-              <strong>状态提示</strong>
-              <div id="bot-banner-text">正在读取 bot 状态...</div>
-            </div>
-
-            <div class="quick-links">
-              <a class="quick-link" href="/admin/bot/login/qrcode/page?token=${escapedToken}">
-                <div>
-                  <strong>扫码登录 / 换绑 bot</strong>
-                  <small>打开二维码页，创建新会话并在浏览器里完成扫码与激活。</small>
-                </div>
-                <span>打开</span>
-              </a>
-              <a class="quick-link" href="/admin/deliveries/page?token=${escapedToken}">
-                <div>
-                  <strong>查看完整投递日志</strong>
-                  <small>进入日志中心筛选状态、查看详情与自动刷新。</small>
-                </div>
-                <span>打开</span>
-              </a>
+            <div class="form-note">
+              扫码登录后 Bot 状态为 <code>needs_activation</code>，请先给微信 ClawBot 发一条消息，再点击对应 Bot 的「激活」按钮。
             </div>
           </section>
 
+          <!-- ========== 手动发送测试 ========== -->
           <section class="card section">
             <div class="section-head">
               <div>
                 <h2>手动发送测试</h2>
-                <p>通过现有 <code>/api/send</code> 发送一条测试通知，仍然走队列链路。</p>
+                <p>选择目标 Bot 并发送测试通知，走完整队列链路。</p>
               </div>
             </div>
-
             <div class="form-grid">
+              <label>
+                目标 Bot
+                <select id="send-bot-select">
+                  <option value="">（自动选择第一个 ready Bot）</option>
+                </select>
+              </label>
               <label>
                 文本内容
                 <textarea id="send-text" placeholder="输入一条测试消息，例如：Cloudflare deploy succeeded."></textarea>
@@ -516,37 +393,37 @@ export const renderDashboardPage = (input: {
               <div class="section-actions">
                 <button id="send-btn">发送测试消息</button>
               </div>
-              <div class="form-note">如果 bot 处于 <code>logged_in</code> / <code>needs_activation</code>，请先点击左侧“尝试激活”。</div>
               <div class="message-box" id="send-message" aria-live="polite">等待发送操作。</div>
             </div>
           </section>
         </section>
 
+        <!-- ========== 最近日志 ========== -->
         <section class="card section">
           <div class="section-head">
             <div>
               <h2>最近日志</h2>
-              <p>总览页默认展示最近 ${input.logsLimit} 条日志，便于快速确认发送链路是否正常。</p>
+              <p>最近 ${input.logsLimit} 条投递记录，便于确认链路状态。</p>
             </div>
             <div class="section-actions">
               <button class="secondary" id="refresh-logs-btn">刷新日志</button>
             </div>
           </div>
-
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>时间</th>
+                  <th>Bot</th>
                   <th>状态</th>
-                  <th>Source</th>
+                  <th>来源</th>
                   <th>消息预览</th>
                   <th>尝试</th>
                   <th>响应</th>
                 </tr>
               </thead>
               <tbody id="recent-log-body" aria-live="polite">
-                <tr><td colspan="6" class="tiny">正在加载日志...</td></tr>
+                <tr><td colspan="7" class="tiny">正在加载日志...</td></tr>
               </tbody>
             </table>
           </div>
@@ -560,16 +437,12 @@ export const renderDashboardPage = (input: {
       const logsLimit = ${JSON.stringify(input.logsLimit)};
 
       const heroPill = document.getElementById("hero-pill");
-      const botStatusValue = document.getElementById("bot-status-value");
-      const botIdValue = document.getElementById("bot-id-value");
-      const botUpdatedValue = document.getElementById("bot-updated-value");
-      const botBanner = document.getElementById("bot-banner");
-      const botBannerText = document.getElementById("bot-banner-text");
+      const botCards = document.getElementById("bot-cards");
+      const sendBotSelect = document.getElementById("send-bot-select");
       const sendText = document.getElementById("send-text");
       const sendDedupe = document.getElementById("send-dedupe");
       const sendMessage = document.getElementById("send-message");
       const recentLogBody = document.getElementById("recent-log-body");
-      const activateBtn = document.getElementById("activate-btn");
       const sendBtn = document.getElementById("send-btn");
 
       const escapeHtml = (value) =>
@@ -580,80 +453,168 @@ export const renderDashboardPage = (input: {
           .replaceAll('"', "&quot;")
           .replaceAll("'", "&#39;");
 
+      // ----- 缓存 Bot 列表 -----
+      let cachedBots = [];
+
       const setHeroPill = (text, tone) => {
         heroPill.textContent = text;
         heroPill.style.background = tone === "error" ? "#fee2e2" : tone === "success" ? "#dcfce7" : "#dff5f2";
         heroPill.style.color = tone === "error" ? "#991b1b" : tone === "success" ? "#166534" : "#0f766e";
       };
 
-      const setBanner = (title, text, tone) => {
-        botBanner.className = "status-banner " + (tone || "");
-        botBanner.querySelector("strong").textContent = title;
-        botBannerText.textContent = text;
+      const statusLabel = (status) => {
+        const map = {
+          ready: "已就绪",
+          logged_in: "已登录",
+          needs_activation: "待激活",
+          needs_login: "需重登",
+          error: "异常"
+        };
+        return map[status] || status;
       };
 
-      const statusHint = (status, lastError) => {
-        if (status === "ready") {
-          return {
-            tone: "success",
-            title: "Bot 已就绪",
-            text: "当前 bot 已激活，可以直接测试发信。"
-          };
-        }
-        if (status === "not_logged_in") {
-          return {
-            tone: "warning",
-            title: "尚未登录",
-            text: "当前还没有已登录 bot，请先打开二维码页完成登录。"
-          };
-        }
-        if (status === "logged_in" || status === "needs_activation") {
-          return {
-            tone: "warning",
-            title: "等待激活",
-            text: lastError || "已登录，但还没有上下文。请先给“微信ClawBot”发一条消息，再尝试激活。"
-          };
-        }
-        if (status === "needs_login") {
-          return {
-            tone: "error",
-            title: "需要重新登录",
-            text: lastError || "登录态可能失效，请重新扫码登录。"
-          };
-        }
-        return {
-          tone: "error",
-          title: "状态异常",
-          text: lastError || "请检查上游响应和最近日志。"
+      const statusDotClass = (status) => {
+        const map = {
+          ready: "ready",
+          logged_in: "logged_in",
+          needs_activation: "needs_activation",
+          needs_login: "needs_login",
+          error: "error"
         };
+        return map[status] || "error";
+      };
+
+      const formatTime = (iso) => {
+        if (!iso) return "-";
+        const d = new Date(iso);
+        const pad = (n) => String(n).padStart(2, "0");
+        return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate())
+          + " " + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
       };
 
       const badgeClass = (status) => {
-        if (status === "queued" || status === "retrying" || status === "delivered" || status === "failed") {
-          return status;
-        }
+        if (["queued", "retrying", "delivered", "failed"].includes(status)) return status;
         return "queued";
       };
 
-      const loadBotStatus = async () => {
-        setHeroPill("正在刷新 bot 状态...", "info");
+      // ----- Bot 列表渲染 -----
+      const loadBots = async () => {
+        setHeroPill("正在刷新...", "info");
         try {
-          const response = await fetch("/admin/bot/status?token=" + encodeURIComponent(adminToken));
+          const response = await fetch("/admin/bots?token=" + encodeURIComponent(adminToken));
           const payload = await response.json();
-          if (!response.ok) throw new Error(payload.message || "无法读取状态");
-          const data = payload.data;
-          botStatusValue.textContent = data.status || "-";
-          botIdValue.textContent = data.botId || "-";
-          botUpdatedValue.textContent = data.updatedAt || "-";
-          const hint = statusHint(data.status, data.lastError);
-          setHeroPill("当前状态：" + data.status, hint.tone === "warning" ? "info" : hint.tone);
-          setBanner(hint.title, hint.text, hint.tone);
+          if (!response.ok) throw new Error(payload.message || "无法读取 Bot 列表");
+          cachedBots = payload.data || [];
+
+          if (!cachedBots.length) {
+            botCards.innerHTML = '<div class="empty-state"><strong>暂无 Bot</strong><p>请点击"添加 Bot（扫码）"完成登录。</p></div>';
+            setHeroPill("0 个 Bot", "info");
+          } else {
+            botCards.innerHTML = cachedBots
+              .map((bot) => {
+                const showActivate = bot.status === "logged_in" || bot.status === "needs_activation";
+                return '<div class="bot-card">'
+                  + '<div class="bot-card-header">'
+                  + '<div>'
+                  + '<h3><span class="status-dot ' + statusDotClass(bot.status) + '"></span>' + escapeHtml(statusLabel(bot.status)) + '</h3>'
+                  + '<div class="bot-label">' + (bot.label ? escapeHtml(bot.label) : '<em>未命名</em>') + '</div>'
+                  + '</div>'
+                  + '</div>'
+                  + '<div class="bot-card-body">'
+                  + '<div class="bot-meta">'
+                  + '<div><code>' + escapeHtml(bot.botId) + '</code></div>'
+                  + '<div>更新于 ' + formatTime(bot.updatedAt) + '</div>'
+                  + (bot.lastError ? '<div style="color:#991b1b">错误: ' + escapeHtml(bot.lastError) + '</div>' : '')
+                  + '</div>'
+                  + '<div class="bot-actions">'
+                  + (showActivate
+                    ? '<button class="small activate-bot-btn" data-bot-id="' + escapeHtml(bot.botId) + '">激活</button>'
+                    : '<button class="small secondary" disabled>激活</button>')
+                  + '<button class="small danger delete-bot-btn" data-bot-id="' + escapeHtml(bot.botId) + '">删除</button>'
+                  + '</div>'
+                  + '</div>'
+                  + '</div>';
+              })
+              .join("");
+
+            // 绑定激活按钮
+            botCards.querySelectorAll(".activate-bot-btn").forEach((btn) => {
+              btn.addEventListener("click", () => activateSpecificBot(btn.dataset.botId));
+            });
+
+            // 绑定删除按钮
+            botCards.querySelectorAll(".delete-bot-btn").forEach((btn) => {
+              btn.addEventListener("click", () => deleteBot(btn.dataset.botId));
+            });
+
+            const readyCount = cachedBots.filter((b) => b.status === "ready").length;
+            setHeroPill(cachedBots.length + " 个 Bot，" + readyCount + " 个已就绪", readyCount > 0 ? "success" : "info");
+          }
+
+          // 刷新发送测试的 Bot 下拉框
+          const prevSelected = sendBotSelect.value;
+          sendBotSelect.innerHTML = '<option value="">（自动选择第一个 ready Bot）</option>'
+            + cachedBots
+              .map((b) => '<option value="' + escapeHtml(b.botId) + '"'
+                + (b.status === "ready" ? "" : ' class="not-ready"')
+                + '>'
+                + escapeHtml(b.label || b.botId)
+                + (b.status !== "ready" ? " [" + statusLabel(b.status) + "]" : "")
+                + '</option>')
+              .join("");
+          // 恢复之前的选中项
+          if (prevSelected && cachedBots.some((b) => b.botId === prevSelected)) {
+            sendBotSelect.value = prevSelected;
+          }
         } catch (error) {
-          setHeroPill("bot 状态读取失败", "error");
-          setBanner("读取失败", error instanceof Error ? error.message : "网络请求失败", "error");
+          setHeroPill("Bot 列表加载失败", "error");
+          botCards.innerHTML = '<div class="empty-state"><strong>加载失败</strong><p>'
+            + escapeHtml(error instanceof Error ? error.message : "网络请求失败") + '</p></div>';
         }
       };
 
+      // ----- 激活指定 Bot -----
+      const activateSpecificBot = async (botId) => {
+        const btn = botCards.querySelector('.activate-bot-btn[data-bot-id="' + CSS.escape(botId) + '"]');
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = "激活中...";
+        }
+        try {
+          const response = await fetch("/admin/bot/" + encodeURIComponent(botId) + "/activate?token=" + encodeURIComponent(adminToken), {
+            method: "POST"
+          });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.message || "未知错误");
+        } catch (error) {
+          // 静默处理，刷新列表后会显示最新状态
+        } finally {
+          await loadBots();
+        }
+      };
+
+      // ----- 删除指定 Bot -----
+      const deleteBot = async (botId) => {
+        const label = (cachedBots.find((b) => b.botId === botId) || {}).label || botId;
+        if (!confirm("确定要删除 Bot「" + label + "」吗？此操作不可撤销。")) return;
+
+        const btns = botCards.querySelectorAll('.delete-bot-btn[data-bot-id="' + CSS.escape(botId) + '"]');
+        btns.forEach((b) => { b.disabled = true; b.textContent = "删除中..."; });
+
+        try {
+          const response = await fetch("/admin/bot/" + encodeURIComponent(botId) + "?token=" + encodeURIComponent(adminToken), {
+            method: "DELETE"
+          });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.message || "未知错误");
+        } catch (error) {
+          alert("删除失败: " + (error instanceof Error ? error.message : "网络请求失败"));
+        } finally {
+          await loadBots();
+        }
+      };
+
+      // ----- 日志加载 -----
       const loadRecentLogs = async () => {
         try {
           const response = await fetch(
@@ -663,14 +624,15 @@ export const renderDashboardPage = (input: {
           if (!response.ok) throw new Error(payload.message || "未知错误");
           const items = payload.data.items || [];
           if (!items.length) {
-            recentLogBody.innerHTML = '<tr><td colspan="6" class="tiny">暂无日志。</td></tr>';
+            recentLogBody.innerHTML = '<tr><td colspan="7" class="tiny">暂无日志。</td></tr>';
             return;
           }
           recentLogBody.innerHTML = items
             .map((item) => {
-              const preview = item.text.length > 90 ? item.text.slice(0, 90) + "..." : item.text;
+              const preview = item.text.length > 80 ? item.text.slice(0, 80) + "..." : item.text;
               return '<tr>'
-                + '<td><div>' + escapeHtml(item.createdAt) + '</div><div class="tiny"><code>' + escapeHtml(item.deliveryId) + '</code></div></td>'
+                + '<td><div>' + formatTime(item.createdAt) + '</div><div class="tiny"><code>' + escapeHtml(item.deliveryId) + '</code></div></td>'
+                + '<td><code>' + escapeHtml(item.botId || "-") + '</code></td>'
                 + '<td><span class="badge ' + badgeClass(item.status) + '">' + escapeHtml(item.status) + '</span></td>'
                 + '<td>' + escapeHtml(item.source) + '</td>'
                 + '<td>' + escapeHtml(preview) + '</td>'
@@ -680,33 +642,12 @@ export const renderDashboardPage = (input: {
             })
             .join("");
         } catch (error) {
-          recentLogBody.innerHTML = '<tr><td colspan="6" class="tiny">日志读取失败：'
+          recentLogBody.innerHTML = '<tr><td colspan="7" class="tiny">日志读取失败：'
             + escapeHtml(error instanceof Error ? error.message : "网络请求失败") + '</td></tr>';
         }
       };
 
-      const activateBot = async () => {
-        activateBtn.disabled = true;
-        activateBtn.textContent = "正在激活...";
-        setHeroPill("正在激活 bot...", "info");
-        try {
-          const response = await fetch("/admin/bot/activate?token=" + encodeURIComponent(adminToken), {
-            method: "POST"
-          });
-          const payload = await response.json();
-          if (!response.ok) throw new Error(payload.message || "未知错误");
-          setBanner("激活结果", payload.data.message, payload.data.status === "ready" ? "success" : "warning");
-          await loadBotStatus();
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "网络请求失败";
-          setHeroPill("激活失败", "error");
-          setBanner("激活失败", message, "error");
-        } finally {
-          activateBtn.disabled = false;
-          activateBtn.textContent = "尝试激活";
-        }
-      };
-
+      // ----- 发送测试消息 -----
       const sendTestMessage = async () => {
         const text = sendText.value.trim();
         if (!text) {
@@ -720,6 +661,12 @@ export const renderDashboardPage = (input: {
         sendMessage.className = "message-box";
         sendMessage.textContent = "正在提交发送请求...";
 
+        const body = { text };
+        body.dedupeKey = sendDedupe.value.trim() || undefined;
+        if (sendBotSelect.value) {
+          body.botId = sendBotSelect.value;
+        }
+
         try {
           const response = await fetch("/api/send", {
             method: "POST",
@@ -727,15 +674,12 @@ export const renderDashboardPage = (input: {
               "Content-Type": "application/json",
               "Authorization": "Bearer " + adminToken
             },
-            body: JSON.stringify({
-              text,
-              dedupeKey: sendDedupe.value.trim() || undefined
-            })
+            body: JSON.stringify(body)
           });
           const payload = await response.json();
           if (!response.ok) throw new Error(payload.message || "未知错误");
           sendMessage.className = "message-box success";
-          sendMessage.textContent = "已入队：deliveryId=" + payload.data.deliveryId + "，状态=" + payload.data.status;
+          sendMessage.textContent = "已入队: deliveryId=" + payload.data.deliveryId + ", botId=" + payload.data.botId + ", 状态=" + payload.data.status;
           sendText.value = "";
           await loadRecentLogs();
         } catch (error) {
@@ -747,21 +691,21 @@ export const renderDashboardPage = (input: {
         }
       };
 
+      // ----- 事件绑定 -----
       document.getElementById("refresh-all-btn").addEventListener("click", async () => {
-        await loadBotStatus();
-        await loadRecentLogs();
+        await Promise.all([loadBots(), loadRecentLogs()]);
       });
-      document.getElementById("refresh-status-btn").addEventListener("click", loadBotStatus);
+      document.getElementById("refresh-bots-btn").addEventListener("click", loadBots);
       document.getElementById("refresh-logs-btn").addEventListener("click", loadRecentLogs);
-      activateBtn.addEventListener("click", activateBot);
       sendBtn.addEventListener("click", sendTestMessage);
 
+      // ----- 自动刷新 -----
       const scheduleRefresh = () => window.setTimeout(async () => {
-        await Promise.all([loadBotStatus(), loadRecentLogs()]);
+        await Promise.all([loadBots(), loadRecentLogs()]);
         scheduleRefresh();
       }, refreshSeconds * 1000);
 
-      loadBotStatus();
+      loadBots();
       loadRecentLogs();
       if (refreshSeconds > 0) scheduleRefresh();
     </script>
