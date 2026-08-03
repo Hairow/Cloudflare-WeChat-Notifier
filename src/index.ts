@@ -73,7 +73,8 @@ const STALE_QUEUED_OLDER_THAN_MINUTES = 10;
  *
  * 执行两个任务：
  *   1. 过期补偿：扫描 D1 中卡在 queued 超过 10 分钟且 attempts=0 的记录，重新入队
- *   2. 保活提醒：按时间桶去重，每个间隔窗口内只发一条保活消息给 ClawBot
+ *   2. 保活提醒：遍历所有 ready/needs_activation Bot，自动激活后再按时间桶去重发送保活消息
+ *
  *
  * @param controller - Cloudflare ScheduledController，含 cron 表达式和调度时间
  * @param context    - 应用上下文
@@ -124,6 +125,7 @@ export const handleScheduled = async (controller: ScheduledController, context: 
       nextDueAt: b.nextDueAt
     }))
   });
+
 };
 
 // ==========================================================================

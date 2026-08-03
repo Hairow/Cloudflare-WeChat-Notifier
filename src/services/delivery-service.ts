@@ -1,5 +1,6 @@
 import type {
   BotListItem,
+  BotState,
   CompensateStaleQueuedResult,
   DeleteDeliveriesResult,
   DeliveryListQuery,
@@ -236,7 +237,9 @@ export class DefaultDeliveryService implements DeliveryService {
 
   /**
    * 检查所有 Bot 的保活状态并执行保活。
-   * 多 Bot 模式下遍历所有 ready 的 Bot，逐个发送保活消息。
+   * 多 Bot 模式下遍历所有 ready/needs_activation 的 Bot，逐个发送保活消息。
+   * 对于 needs_activation 的 Bot，先尝试调用 getUpdates 自动激活，成功则继续发保活消息，
+   * 失败则跳过并记录 activation_failed。
    */
   public async enqueueKeepaliveIfDue(config: KeepaliveConfig, now = new Date()): Promise<ScheduledKeepaliveResult> {
     const perBot: ScheduledKeepalivePerBotResult[] = [];
@@ -258,13 +261,27 @@ export class DefaultDeliveryService implements DeliveryService {
       return { enqueued: false, perBot };
     }
 
-    // 获取所有 ready 状态的 Bot
-    const readyBots = await this.botRepository.listAll();
-    const readyIds = new Set(readyBots.filter((b) => b.status === "ready").map((b) => b.botId));
-    const allBots = await this.botRepository.listAllBrief();
+    // 获取所有 Bot（含完整凭证，needs_activation 的需要用于 getUpdates）
+    const allFullBots = await this.botRepository.listAll();
+    const allBriefBots = await this.botRepository.listAllBrief();
+    const intervalMs = config.intervalHours * MS_PER_HOUR;
 
-    for (const botInfo of allBots) {
-      if (!readyIds.has(botInfo.botId)) {
+    // 构建 Bot 状态查找表
+    const readyBots = new Map<string, BotState>();
+    const needsActivationBots = new Map<string, BotState>();
+    for (const bot of allFullBots) {
+      if (bot.status === "ready") {
+        readyBots.set(bot.botId, bot);
+      } else if (bot.status === "needs_activation") {
+        needsActivationBots.set(bot.botId, bot);
+      }
+    }
+
+    for (const botInfo of allBriefBots) {
+      const isReady = readyBots.has(botInfo.botId);
+      const isActivation = needsActivationBots.has(botInfo.botId);
+
+      if (!isReady && !isActivation) {
         perBot.push({
           botId: botInfo.botId,
           label: botInfo.label,
@@ -278,8 +295,53 @@ export class DefaultDeliveryService implements DeliveryService {
         continue;
       }
 
+      // 如果是 needs_activation，先尝试自动激活
+      if (isActivation) {
+        const activationBot = needsActivationBots.get(botInfo.botId)!;
+        try {
+          const updates = await this.ilinkClient.getUpdates(activationBot);
+          const firstContextToken = updates.messages.find(
+            (m) => m.context_token
+          )?.context_token ?? null;
+
+          if (firstContextToken) {
+            await this.botRepository.updateActivation(botInfo.botId, {
+              contextToken: firstContextToken,
+              getUpdatesBuf: updates.getUpdatesBuf ?? activationBot.getUpdatesBuf,
+              status: "ready",
+              lastError: null
+            });
+            // 激活成功，继续做保活检查（不再重查 DB，直接信任内存状态）
+          } else {
+            perBot.push({
+              botId: botInfo.botId,
+              label: botInfo.label,
+              enqueued: false,
+              reason: "activation_failed",
+              deliveryId: null,
+              lastDeliveryId: null,
+              lastCreatedAt: null,
+              nextDueAt: null
+            });
+            continue;
+          }
+        } catch {
+          perBot.push({
+            botId: botInfo.botId,
+            label: botInfo.label,
+            enqueued: false,
+            reason: "activation_failed",
+            deliveryId: null,
+            lastDeliveryId: null,
+            lastCreatedAt: null,
+            nextDueAt: null
+          });
+          continue;
+        }
+      }
+
+      // 保活检查：查找该 Bot + source 的最新一条投递
       const latest = (await this.listDeliveries({ limit: 1, page: 1, source: config.source, botId: botInfo.botId })).items[0] ?? null;
-      const intervalMs = config.intervalHours * MS_PER_HOUR;
       const nextDueAt = latest ? new Date(new Date(latest.createdAt).getTime() + intervalMs) : null;
 
       if (nextDueAt && nextDueAt.getTime() > now.getTime()) {
@@ -287,7 +349,7 @@ export class DefaultDeliveryService implements DeliveryService {
           botId: botInfo.botId,
           label: botInfo.label,
           enqueued: false,
-          reason: "not_due",
+          reason: isActivation ? "activated" : "not_due",
           deliveryId: null,
           lastDeliveryId: latest.deliveryId,
           lastCreatedAt: latest.createdAt,
@@ -312,7 +374,7 @@ export class DefaultDeliveryService implements DeliveryService {
         botId: botInfo.botId,
         label: botInfo.label,
         enqueued: !result.duplicate,
-        reason: result.duplicate ? "duplicate" : "queued",
+        reason: result.duplicate ? "duplicate" : (isActivation ? "activated" : "queued"),
         deliveryId: result.deliveryId,
         lastDeliveryId: latest?.deliveryId ?? null,
         lastCreatedAt: latest?.createdAt ?? null,

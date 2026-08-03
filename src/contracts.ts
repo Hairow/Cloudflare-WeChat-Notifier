@@ -306,7 +306,7 @@ export interface ScheduledKeepalivePerBotResult {
   botId: string;
   label: string;
   enqueued: boolean;
-  reason: "disabled" | "not_due" | "queued" | "duplicate" | "skipped";
+  reason: "disabled" | "not_due" | "queued" | "duplicate" | "skipped" | "activated" | "activation_failed";
   deliveryId: string | null;
   lastDeliveryId: string | null;
   lastCreatedAt: string | null;
@@ -365,7 +365,7 @@ export interface DeliveryService {
   replayFailedRetMinusTwo(query: { limit: number; source?: string }): Promise<ReplayFailedRetMinusTwoResult>;
   /** 补偿卡在 queued 状态的过期投递（Cron 触发） */
   compensateStaleQueued(query: { limit: number; olderThanMinutes: number; source?: string }): Promise<CompensateStaleQueuedResult>;
-  /** 检查并执行保活（Cron 触发），遍历所有 ready Bot */
+  /** 检查并执行保活（Cron 触发），遍历所有 ready/needs_activation Bot */
   enqueueKeepaliveIfDue(config: KeepaliveConfig, now?: Date): Promise<ScheduledKeepaliveResult>;
   /** 队列消费者处理单条投递 */
   processQueuedDelivery(deliveryId: string, attempts: number): Promise<QueueProcessResult>;
