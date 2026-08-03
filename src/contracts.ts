@@ -26,14 +26,13 @@
 /**
  * Bot 生命周期状态：
  *
- *   not_logged_in    — 没有任何登录信息，需要扫码
  *   logged_in        — 已登录但未激活（缺少 context_token）
  *   needs_activation — 需要调用 getUpdates 获取 context_token
  *   ready            — 一切就绪，可以收发消息
  *   needs_login      — 凭证过期，需要重新扫码登录
  *   error            — 发生异常
  */
-export type BotStatus = "not_logged_in" | "logged_in" | "needs_activation" | "ready" | "needs_login" | "error";
+export type BotStatus = "logged_in" | "needs_activation" | "ready" | "needs_login" | "error";
 
 /** 登录会话（二维码）生命周期 */
 export type LoginSessionStatus = "wait" | "scanned" | "confirmed" | "expired";
@@ -64,7 +63,7 @@ export interface BotState {
   /** 长轮询游标，增量拉取消息时使用 */
   getUpdatesBuf: string | null;
   /** Bot 当前生命周期状态 */
-  status: Exclude<BotStatus, "not_logged_in">;
+  status: BotStatus;
   /** 最近一次错误信息，正常时为空 */
   lastError: string | null;
   /** ISO 8601 时间戳，最后更新时间 */
