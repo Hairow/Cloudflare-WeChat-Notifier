@@ -632,21 +632,9 @@ export const createApp = (context: AppContext): Hono => {
   /**
    * POST /admin/bot/login/qrcode
    * 创建登录二维码会话，返回 sessionId 和 base64 图片数据。
-   * 请求体可含 { "label": "张三-OA通知" } 用于标记 Bot。
    */
   app.post("/admin/bot/login/qrcode", async (c) => {
-    let input;
-    try {
-      input = await parseJsonBody(c.req.raw);
-    } catch {
-      input = {};
-    }
-    const label = typeof input === "object" && input !== null && !Array.isArray(input)
-      ? (input as Record<string, unknown>).label
-      : undefined;
-    const data = await context.services.admin.createLoginQrcode(
-      typeof label === "string" && label.trim() ? { label: label.trim() } : undefined
-    );
+    const data = await context.services.admin.createLoginQrcode();
     return c.json(
       {
         code: 201,

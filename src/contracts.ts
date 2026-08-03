@@ -163,12 +163,6 @@ export interface QueueDeliveryMessage {
   deliveryId: string;
 }
 
-/** 创建登录二维码的请求参数 */
-export interface CreateLoginQrcodeInput {
-  /** Bot 标签（如 "张三-OA通知"），用于后续识别 */
-  label?: string;
-}
-
 /** 创建登录二维码的响应 */
 export interface LoginQrcodeResponse {
   sessionId: string;
@@ -331,7 +325,7 @@ export interface HealthResponse {
 /** 管理员服务：处理 Bot 登录、激活、状态查询 */
 export interface AdminService {
   /** 创建登录二维码会话 */
-  createLoginQrcode(input?: CreateLoginQrcodeInput): Promise<LoginQrcodeResponse>;
+  createLoginQrcode(): Promise<LoginQrcodeResponse>;
   /** 轮询扫码状态 */
   getLoginStatus(sessionId: string): Promise<LoginStatusResponse>;
   /** 激活指定 Bot（调用 getUpdates 获取 context_token） */

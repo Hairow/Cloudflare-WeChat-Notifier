@@ -1,4 +1,4 @@
-import type { ActivateBotResponse, AdminService, BotListItem, BotStatusView, CreateLoginQrcodeInput, LoginQrcodeResponse, LoginSession, LoginStatusResponse } from "../contracts";
+import type { ActivateBotResponse, AdminService, BotListItem, BotStatusView, LoginQrcodeResponse, LoginSession, LoginStatusResponse } from "../contracts";
 import { IlinkClient } from "../ilink/client";
 import { AppError } from "../lib/errors";
 import { createSessionId } from "../lib/id";
@@ -17,9 +17,8 @@ export class DefaultAdminService implements AdminService {
 
   /**
    * 创建登录二维码会话。
-   * 支持传入 label 用于标记哪个用户（如 "张三-OA通知"）。
    */
-  public async createLoginQrcode(input?: CreateLoginQrcodeInput): Promise<LoginQrcodeResponse> {
+  public async createLoginQrcode(): Promise<LoginQrcodeResponse> {
     const qrcode = await this.ilinkClient.getBotQrcode();
     const now = Date.now();
     const session: LoginSession = {
@@ -34,11 +33,6 @@ export class DefaultAdminService implements AdminService {
     };
 
     await this.loginSessionRepository.create(session);
-    // label 需要存储——这里我们通过会话创建时的参数记忆，实际通过 bot_state 的 label 字段体现
-    // 先把 label 传递给登录确认环节：用一个临时机制，这里简单起见直接记在 session 上下文中
-    if (input?.label) {
-      await this.loginSessionRepository.create(session);
-    }
 
     return {
       sessionId: session.sessionId,
