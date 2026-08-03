@@ -163,7 +163,7 @@ const classifyErrorCategory = (
     return "unauthorized";
   }
 
-  if (normalized.includes("context")) {
+  if (normalized.includes("context") || normalized.includes("prepare")) {
     return "context";
   }
 
