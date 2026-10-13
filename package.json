@@ -10,6 +10,7 @@
     "cf:migrate:local": "wrangler d1 migrations apply DB --local",
     "cf:migrate:remote": "wrangler d1 migrations apply DB --remote"
   },
+  "packageManager": "pnpm@12.11.2",
   "dependencies": {
     "hono": "^4.12.9",
     "qrcode": "^1.5.4"

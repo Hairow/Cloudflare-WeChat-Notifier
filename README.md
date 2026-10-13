@@ -122,14 +122,14 @@ flowchart LR
 ```bash
 git clone <your-repo-url>
 cd Cloudflare-WeChat-Notifier
-npm install
+pnpm install
 ```
 
 ### 2. 创建 Cloudflare 资源
 
 ```bash
-npx wrangler d1 create ilink-cloudflare
-npx wrangler queues create ilink-notification-queue
+pnpm exec wrangler d1 create ilink-cloudflare
+pnpm exec wrangler queues create ilink-notification-queue
 ```
 
 ### 3. 配置 `wrangler.jsonc`
@@ -143,9 +143,9 @@ cp wrangler.jsonc.example wrangler.jsonc
 ### 4. 配置 Secrets（敏感数据放入 Secret，不要放 vars）
 
 ```bash
-npx wrangler secret put ADMIN_TOKEN
-npx wrangler secret put WEBHOOK_SHARED_TOKEN
-npx wrangler secret put BOT_STATE_ENC_KEY
+pnpm exec wrangler secret put ADMIN_TOKEN
+pnpm exec wrangler secret put WEBHOOK_SHARED_TOKEN
+pnpm exec wrangler secret put BOT_STATE_ENC_KEY
 ```
 
 `wrangler.jsonc` 中 vars 设置非敏感变量即可：
@@ -162,14 +162,14 @@ npx wrangler secret put BOT_STATE_ENC_KEY
 ### 5. 初始化数据库
 
 ```bash
-npm run cf:migrate:local
-npm run cf:migrate:remote
+pnpm run cf:migrate:local
+pnpm run cf:migrate:remote
 ```
 
 ### 6. 部署
 
 ```bash
-npm run deploy
+pnpm run deploy
 ```
 
 部署成功后，访问 `https://<your-worker>.workers.dev/admin/dashboard?token=<ADMIN_TOKEN>` 进入管理面板。
@@ -431,13 +431,13 @@ test/                         # Vitest 测试用例
 
 | 命令 | 说明 |
 |------|------|
-| `npm run dev` | 本地启动 Worker (`wrangler dev`) |
-| `npm run deploy` | 部署到 Cloudflare Workers |
-| `npm run typecheck` | TypeScript 类型检查 |
-| `npm test` | 运行所有测试 |
-| `npm run test:watch` | 监听模式运行测试 |
-| `npm run cf:migrate:local` | 对本地 D1 应用迁移 |
-| `npm run cf:migrate:remote` | 对远程 D1 应用迁移 |
+| `pnpm run dev` | 本地启动 Worker (`wrangler dev`) |
+| `pnpm run deploy` | 部署到 Cloudflare Workers |
+| `pnpm run typecheck` | TypeScript 类型检查 |
+| `pnpm test` | 运行所有测试 |
+| `pnpm run test:watch` | 监听模式运行测试 |
+| `pnpm run cf:migrate:local` | 对本地 D1 应用迁移 |
+| `pnpm run cf:migrate:remote` | 对远程 D1 应用迁移 |
 
 ---
 
